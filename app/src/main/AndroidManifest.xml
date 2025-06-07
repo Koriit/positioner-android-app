@@ -1,0 +1,12 @@
+<manifest package="org.example.positioner">
+    <application
+        android:label="Positioner App"
+        android:theme="@style/Theme.Positioner">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
