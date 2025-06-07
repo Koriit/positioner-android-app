@@ -1,4 +1,5 @@
-<manifest package="org.example.positioner">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.example.positioner">
     <application
         android:label="Positioner App"
         android:theme="@style/Theme.Positioner">

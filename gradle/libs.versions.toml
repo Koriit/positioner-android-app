@@ -4,11 +4,13 @@ compose-bom = "2024.05.00"
 junit-jupiter = "5.11.3"
 kotlin = "2.1.0"
 activity-compose = "1.9.0"
+material = "1.12.0"
 
 [libraries]
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
+material = { module = "com.google.android.material:material", version.ref = "material" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle" }

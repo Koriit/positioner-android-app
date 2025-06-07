@@ -37,3 +37,4 @@ google-services.json
 
 # Ignore Gradle build output directory
 build
+.kotlin/
