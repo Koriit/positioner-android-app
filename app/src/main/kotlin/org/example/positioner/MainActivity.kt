@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.collect
 import org.example.positioner.lidar.LidarMeasurement
 import org.example.positioner.lidar.LidarPlot
 import org.example.positioner.lidar.LidarReader
+import org.example.positioner.lidar.LidarDataSource
+import org.example.positioner.lidar.FakeLidarReader
 import org.example.positioner.logging.AppLog
 import org.example.positioner.logging.LogView
 
@@ -48,13 +50,13 @@ private fun LidarScreen() {
         val buffer = mutableListOf<LidarMeasurement>()
         try {
             AppLog.d("MainActivity", "Opening LidarReader")
-            val reader = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
-            if (reader == null) {
-                AppLog.d("MainActivity", "No reader available")
-                return@produceState
-            }
+            val realReader = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
+            val source: LidarDataSource = if (realReader == null) {
+                AppLog.d("MainActivity", "Using FakeLidarReader")
+                FakeLidarReader()
+            } else realReader
             AppLog.d("MainActivity", "Starting measurement collection")
-            reader.measurements().collect { m ->
+            source.measurements().collect { m ->
                 buffer.add(m)
                 if (buffer.size >= 480) {
                     value = buffer.toList()
