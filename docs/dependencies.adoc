@@ -1,0 +1,37 @@
+== Dependency overview
+
+This project uses a small set of libraries. The table below explains why each dependency is included and how it is used.
+
+[cols="1,3",options="header"]
+|===
+|Dependency |Purpose and usage
+
+|AndroidX Activity Compose (activity-compose)
+|Hosts Jetpack Compose UI within an Android Activity.
+
+|Compose BOM
+|Aligns versions of all Compose libraries used in the app.
+
+|Material3
+|Provides Material Design components for Compose UI.
+
+|Android Material Components
+|Legacy Material widget support for interoperability with Compose.
+
+|Compose UI Tooling Preview
+|Enables Compose previews in Android Studio.
+|Compose UI Tooling (debug)
+|Used for on-device inspection and Compose layout debugging.
+
+|Kotlin Coroutines
+|Used by `LidarReader` to stream measurements asynchronously.
+
+|usb-serial-for-android
+|Accesses the CP210x USB serial device to read lidar packets.
+
+|JUnit Jupiter
+|Runs unit tests written with JUnit 5.
+
+|JUnit Platform Launcher
+|Allows Gradle to execute JUnit 5 tests.
+|===
