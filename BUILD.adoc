@@ -1,0 +1,38 @@
+= Building and Installing Positioner App
+
+This document describes how to build the Positioner Android app and install it on your phone.
+
+== Prerequisites
+
+* JDK 17 installed
+* Android SDK command-line tools installed via `scripts/setup_android_sdk.sh`
+
+== Steps
+
+1. Run the setup script to install the Android SDK and required packages:
++
+[source,bash]
+----
+./scripts/setup_android_sdk.sh
+----
+
+2. Build the debug APK:
++
+[source,bash]
+----
+./gradlew assembleDebug
+----
+The resulting APK will be in `app/build/outputs/apk/debug/app-debug.apk`.
+
+3. Connect your phone with USB debugging enabled.
+
+4. Install the APK using `adb` or Gradle:
++
+[source,bash]
+----
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+# or
+./gradlew installDebug
+----
+
+After installation, the app named *Positioner App* will appear on your device.
