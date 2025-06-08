@@ -56,15 +56,18 @@ private fun LidarScreen() {
                 FakeLidarReader()
             } else realReader
             AppLog.d("MainActivity", "Starting measurement collection")
-            source.measurements().collect { m ->
-                buffer.add(m)
-                if (buffer.size >= 480) {
-                    value = buffer.toList()
-                    buffer.clear()
+            withContext(Dispatchers.IO) {
+                source.measurements().collect { m ->
+                    buffer.add(m)
+                    if (buffer.size >= 480) {
+                        val result = buffer.toList()
+                        buffer.clear()
+                        withContext(Dispatchers.Main) { value = result }
+                    }
                 }
             }
-        } catch (_: Exception) {
-            // In case opening the serial port fails just keep empty data
+        } catch (e: Exception) {
+            AppLog.d("MainActivity", "Measurement loop failed", e)
         }
     }
     Column(modifier = Modifier.fillMaxSize()) {

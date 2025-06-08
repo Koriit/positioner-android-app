@@ -54,17 +54,25 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
             val port: UsbSerialPort = driver.ports[0]
             port.open(connection)
             port.setParameters(230400, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
+            // start continuous scan mode (0xA5 0x60)
+            AppLog.d(TAG, "Sending start scan command")
+            port.write(byteArrayOf(0xA5.toByte(), 0x60.toByte()), READ_TIMEOUT)
             return LidarReader(port)
         }
     }
 
+    // Stream measurements emitted by the lidar. The blocking serial reads are
+    // executed on Dispatchers.IO thanks to [flowOn] below so the UI thread
+    // never blocks.
     override fun measurements(): Flow<LidarMeasurement> = flow {
         val packet = ByteArray(47)
         val header = byteArrayOf(0x54.toByte(), 0x2C.toByte())
         val buffer = ByteArray(1)
         AppLog.d(TAG, "Starting measurement loop")
         while (true) {
-            // search for header byte 0x54
+            // Continuously search for packet header. This loop runs until the
+            // coroutine is cancelled.
+            // Search for header byte 0x54
             if (port.read(buffer, READ_TIMEOUT) != 1) continue
             if (buffer[0] != header[0]) continue
             if (port.read(buffer, READ_TIMEOUT) != 1 || buffer[0] != header[1]) continue
@@ -85,9 +93,13 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
             packet[1] = header[1]
             try {
                 val measures = parser.parse(packet)
-                AppLog.d(TAG, "Parsed packet with ${'$'}{measures.size} measurements")
+                AppLog.d(
+                    TAG,
+                    "Parsed packet with ${'$'}{measures.size} measurements"
+                )
                 for (m in measures) emit(m)
             } catch (e: IllegalArgumentException) {
+                // Skip malformed packets but log the error for debugging
                 AppLog.d(TAG, "Malformed packet", e)
             }
         }
