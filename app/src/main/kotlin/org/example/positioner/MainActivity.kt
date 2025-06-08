@@ -3,20 +3,18 @@ package org.example.positioner
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.flow.collect
+import org.example.positioner.lidar.LidarMeasurement
+import org.example.positioner.lidar.LidarPlot
+import org.example.positioner.lidar.LidarReader
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -30,25 +28,28 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun PositionerApp() {
     MaterialTheme {
-        val showDialog = remember { mutableStateOf(false) }
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Button(onClick = { showDialog.value = true }) {
-                Text("Open Modal")
+        LidarScreen()
+    }
+}
+
+@Composable
+private fun LidarScreen() {
+    val measurements by produceState(initialValue = emptyList<LidarMeasurement>()) {
+        val buffer = mutableListOf<LidarMeasurement>()
+        try {
+            val reader = LidarReader.openDefault()
+            reader.measurements().collect { m ->
+                buffer.add(m)
+                if (buffer.size >= 480) {
+                    value = buffer.toList()
+                    buffer.clear()
+                }
             }
-            if (showDialog.value) {
-                AlertDialog(
-                    onDismissRequest = { showDialog.value = false },
-                    confirmButton = {
-                        TextButton(onClick = { showDialog.value = false }) {
-                            Text("Close")
-                        }
-                    },
-                    title = { Text("Welcome") },
-                    text = { Text("Welcome to Positioner App") }
-                )
-            }
+        } catch (_: Exception) {
+            // In case opening the serial port fails just keep empty data
         }
     }
+    LidarPlot(measurements, modifier = Modifier.fillMaxSize())
 }
 
 @Preview
