@@ -47,7 +47,8 @@ private fun LidarScreen() {
     val context = LocalContext.current
     val logs by AppLog.logs.collectAsState()
     val measurements by produceState(initialValue = emptyList<LidarMeasurement>(), context) {
-        val buffer = mutableListOf<LidarMeasurement>()
+        val buffer = ArrayDeque<LidarMeasurement>()
+        var counter = 0
         try {
             AppLog.d("MainActivity", "Opening LidarReader")
             val realReader = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
@@ -58,10 +59,12 @@ private fun LidarScreen() {
             AppLog.d("MainActivity", "Starting measurement collection")
             withContext(Dispatchers.IO) {
                 source.measurements().collect { m ->
-                    buffer.add(m)
-                    if (buffer.size >= 480) {
+                    if (buffer.size >= 480) buffer.removeFirst()
+                    buffer.addLast(m)
+                    counter++
+                    if (counter >= 25) {
+                        counter = 0
                         val result = buffer.toList()
-                        buffer.clear()
                         withContext(Dispatchers.Main) { value = result }
                     }
                 }
