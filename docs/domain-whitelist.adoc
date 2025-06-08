@@ -1,0 +1,8 @@
+The project builds dependencies from several online repositories. Ensure your network allows access to these domains:
+
+- https://services.gradle.org
+- https://plugins.gradle.org
+- https://dl.google.com
+- https://maven.google.com
+- https://repo.maven.apache.org
+- https://jitpack.io
