@@ -31,10 +31,17 @@ class LidarReader(private val port: UsbSerialPort) {
          */
         fun openDefault(context: Context): LidarReader? {
             val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+            AppLog.d(TAG, "Searching for USB serial drivers")
             val drivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
-            val driver = drivers.firstOrNull() ?: return null
+            AppLog.d(TAG, "Found ${'$'}{drivers.size} drivers")
+            val driver = drivers.firstOrNull()
+            if (driver == null) {
+                AppLog.d(TAG, "No USB serial device available")
+                return null
+            }
             var connection = manager.openDevice(driver.device)
             if (connection == null) {
+                AppLog.d(TAG, "Requesting permission for device")
                 val pi = PendingIntent.getBroadcast(
                     context,
                     0,

@@ -7,3 +7,5 @@ To connect the YDLIDAR through a CP210x UART-USB bridge you need to enable a few
 . (Optional) **Developer options** -> *USB debugging* can help when inspecting connection issues.
 
 After granting permission the app will automatically open the CP210x port and start plotting measurements.
+
+NOTE: USB host mode is not supported in the Android emulator. You must use a physical device to communicate with the CP210x bridge.

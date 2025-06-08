@@ -15,6 +15,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.collect
 import org.example.positioner.lidar.LidarMeasurement
 import org.example.positioner.lidar.LidarPlot
@@ -45,8 +47,13 @@ private fun LidarScreen() {
     val measurements by produceState(initialValue = emptyList<LidarMeasurement>(), context) {
         val buffer = mutableListOf<LidarMeasurement>()
         try {
-            val reader = LidarReader.openDefault(context)
-            if (reader == null) return@produceState
+            AppLog.d("MainActivity", "Opening LidarReader")
+            val reader = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
+            if (reader == null) {
+                AppLog.d("MainActivity", "No reader available")
+                return@produceState
+            }
+            AppLog.d("MainActivity", "Starting measurement collection")
             reader.measurements().collect { m ->
                 buffer.add(m)
                 if (buffer.size >= 480) {
