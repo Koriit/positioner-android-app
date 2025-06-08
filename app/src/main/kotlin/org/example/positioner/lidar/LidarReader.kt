@@ -18,7 +18,7 @@ import java.io.IOException
  * individual measurements as a [Flow]. The implementation searches for
  * packet headers (0x54, 0x2C) and uses [LidarParser] to decode the packet.
  */
-class LidarReader(private val port: UsbSerialPort) {
+class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
     private val parser = LidarParser()
 
     companion object {
@@ -33,7 +33,7 @@ class LidarReader(private val port: UsbSerialPort) {
             val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
             AppLog.d(TAG, "Searching for USB serial drivers")
             val drivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
-            AppLog.d(TAG, "Found ${'$'}{drivers.size} drivers")
+            AppLog.d(TAG, "Found ${drivers.size} drivers" + drivers)
             val driver = drivers.firstOrNull()
             if (driver == null) {
                 AppLog.d(TAG, "No USB serial device available")
@@ -58,7 +58,7 @@ class LidarReader(private val port: UsbSerialPort) {
         }
     }
 
-    fun measurements(): Flow<LidarMeasurement> = flow {
+    override fun measurements(): Flow<LidarMeasurement> = flow {
         val packet = ByteArray(47)
         val header = byteArrayOf(0x54.toByte(), 0x2C.toByte())
         val buffer = ByteArray(1)
