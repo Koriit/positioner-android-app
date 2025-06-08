@@ -34,8 +34,8 @@ fun PositionerApp() {
 
 @Composable
 private fun LidarScreen() {
-    val measurements by produceState(initialValue = emptyList<LidarMeasurement>()) {
-        val context = LocalContext.current
+    val context = LocalContext.current
+    val measurements by produceState(initialValue = emptyList<LidarMeasurement>(), context) {
         val buffer = mutableListOf<LidarMeasurement>()
         try {
             val reader = LidarReader.openDefault(context)

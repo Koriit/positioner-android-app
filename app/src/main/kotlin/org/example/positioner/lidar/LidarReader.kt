@@ -11,18 +11,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import java.io.InputStream
+import java.io.IOException
 
 /**
  * Continuously read measurement packets from the serial port and emit
  * individual measurements as a [Flow]. The implementation searches for
  * packet headers (0x54, 0x2C) and uses [LidarParser] to decode the packet.
  */
-class LidarReader(private val input: InputStream) {
+class LidarReader(private val port: UsbSerialPort) {
     private val parser = LidarParser()
 
     companion object {
         private const val TAG = "LidarReader"
+        private const val READ_TIMEOUT = 50
 
         /**
          * Open the first available USB serial port (CP210x) with default settings.
@@ -46,7 +47,7 @@ class LidarReader(private val input: InputStream) {
             val port: UsbSerialPort = driver.ports[0]
             port.open(connection)
             port.setParameters(230400, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
-            return LidarReader(port.inputStream)
+            return LidarReader(port)
         }
     }
 
@@ -57,14 +58,16 @@ class LidarReader(private val input: InputStream) {
         Log.d(TAG, "Starting measurement loop")
         while (true) {
             // search for header byte 0x54
-            if (input.read(buffer) != 1) continue
+            if (port.read(buffer, READ_TIMEOUT) != 1) continue
             if (buffer[0] != header[0]) continue
-            if (input.read(buffer) != 1 || buffer[0] != header[1]) continue
+            if (port.read(buffer, READ_TIMEOUT) != 1 || buffer[0] != header[1]) continue
             // read the rest of the packet
             var read = 0
             while (read < packet.size - 2) {
-                val r = input.read(packet, 2 + read, packet.size - 2 - read)
+                val slice = ByteArray(packet.size - 2 - read)
+                val r = port.read(slice, READ_TIMEOUT)
                 if (r <= 0) break
+                System.arraycopy(slice, 0, packet, 2 + read, r)
                 read += r
             }
             if (read != packet.size - 2) {
