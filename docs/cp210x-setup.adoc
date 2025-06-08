@@ -1,0 +1,9 @@
+== Using CP210x USB Serial
+
+To connect the YDLIDAR through a CP210x UART-USB bridge you need to enable a few phone features:
+
+. **USB OTG / Host mode** - Make sure your phone supports USB host mode and that the OTG option is enabled in system settings.
+. **USB permission** - When the device is first plugged in, Android will prompt to allow the app access to the USB device. Accept this request so the app can open the serial port.
+. (Optional) **Developer options** -> *USB debugging* can help when inspecting connection issues.
+
+After granting permission the app will automatically open the CP210x port and start plotting measurements.

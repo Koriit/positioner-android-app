@@ -1,11 +1,16 @@
 package org.example.positioner.lidar
 
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.hardware.usb.UsbManager
 import android.util.Log
+import com.hoho.android.usbserial.driver.UsbSerialPort
+import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import java.io.FileInputStream
 import java.io.InputStream
 
 /**
@@ -20,9 +25,29 @@ class LidarReader(private val input: InputStream) {
         private const val TAG = "LidarReader"
 
         /**
-         * Helper to open the default serial port used by the python POC.
+         * Open the first available USB serial port (CP210x) with default settings.
+         * Returns null if no device is available or permission is missing.
          */
-        fun openDefault(): LidarReader = LidarReader(FileInputStream("/dev/ttyAMA0"))
+        fun openDefault(context: Context): LidarReader? {
+            val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+            val drivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
+            val driver = drivers.firstOrNull() ?: return null
+            var connection = manager.openDevice(driver.device)
+            if (connection == null) {
+                val pi = PendingIntent.getBroadcast(
+                    context,
+                    0,
+                    Intent("org.example.positioner.USB_PERMISSION"),
+                    PendingIntent.FLAG_IMMUTABLE
+                )
+                manager.requestPermission(driver.device, pi)
+                return null
+            }
+            val port: UsbSerialPort = driver.ports[0]
+            port.open(connection)
+            port.setParameters(230400, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
+            return LidarReader(port.inputStream)
+        }
     }
 
     fun measurements(): Flow<LidarMeasurement> = flow {

@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.material)
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation(libs.coroutines)
+    implementation(libs.usbserial)
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(libs.junit.jupiter)
