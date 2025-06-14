@@ -6,10 +6,16 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
@@ -44,11 +50,12 @@ fun PositionerApp() {
 
 @Composable
 private fun LidarScreen() {
+    var flushIntervalMs by remember { mutableStateOf(100f) }
     val context = LocalContext.current
     val logs by AppLog.logs.collectAsState()
-    val measurements by produceState(initialValue = emptyList<LidarMeasurement>(), context) {
+    val measurements by produceState(initialValue = emptyList<LidarMeasurement>(), context, flushIntervalMs) {
         val buffer = ArrayDeque<LidarMeasurement>()
-        var counter = 0
+        var lastFlush = System.currentTimeMillis()
         try {
             AppLog.d("MainActivity", "Opening LidarReader")
             val realReader = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
@@ -61,9 +68,9 @@ private fun LidarScreen() {
                 source.measurements().collect { m ->
                     if (buffer.size >= 480) buffer.removeFirst()
                     buffer.addLast(m)
-                    counter++
-                    if (counter >= 25) {
-                        counter = 0
+                    val now = System.currentTimeMillis()
+                    if (now - lastFlush >= flushIntervalMs.toLong()) {
+                        lastFlush = now
                         val result = buffer.toList()
                         withContext(Dispatchers.Main) { value = result }
                     }
@@ -75,6 +82,13 @@ private fun LidarScreen() {
     }
     Column(modifier = Modifier.fillMaxSize()) {
         LidarPlot(measurements, modifier = Modifier.weight(1f))
+        Slider(
+            value = flushIntervalMs,
+            onValueChange = { flushIntervalMs = it },
+            valueRange = 50f..1000f,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text("Flush interval: ${flushIntervalMs.toInt()} ms")
         LogView(logs, modifier = Modifier.height(160.dp))
     }
 }
