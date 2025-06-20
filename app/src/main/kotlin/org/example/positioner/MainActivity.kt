@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import org.example.positioner.lidar.LidarMeasurement
 import org.example.positioner.lidar.LidarPlot
@@ -51,15 +52,16 @@ fun PositionerApp() {
     }
 }
 
-
-private const val RAW_DEBUG = false
-
 @Composable
 private fun LidarScreen() {
     var flushIntervalMs by remember { mutableStateOf(100f) }
     val context = LocalContext.current
     val logs by AppLog.logs.collectAsState()
-    val measurements by produceState(initialValue = emptyList<LidarMeasurement>(), context, flushIntervalMs) {
+    val measurements by produceState(
+        initialValue = emptyList<LidarMeasurement>(),
+        context,
+        flushIntervalMs
+    ) {
         val buffer = ArrayDeque<LidarMeasurement>()
         var lastFlush = System.currentTimeMillis()
         try {
@@ -69,22 +71,17 @@ private fun LidarScreen() {
                 AppLog.d("MainActivity", "Using FakeLidarReader")
                 FakeLidarReader()
             } else realReader
-            if (RAW_DEBUG && source is LidarReader) {
-                AppLog.d("MainActivity", "Starting raw hex debug")
-                withContext(Dispatchers.IO) { source.debugReadHex().collect { } }
-            } else {
-                AppLog.d("MainActivity", "Starting measurement collection")
-                withContext(Dispatchers.IO) {
-                    source.measurements().collect { m ->
-                        if (buffer.size >= 480) buffer.removeFirst()
-                        buffer.addLast(m)
-                        val now = System.currentTimeMillis()
-                        if (now - lastFlush >= flushIntervalMs.toLong()) {
-                            AppLog.d("MainActivity", "Flushing: ${buffer.size}")
-                            lastFlush = now
-                            val result = buffer.toList()
-                            withContext(Dispatchers.Main) { value = result }
-                        }
+            AppLog.d("MainActivity", "Starting measurement collection")
+            withContext(Dispatchers.IO) {
+                source.measurements().flowOn(Dispatchers.IO).collect { m ->
+                    if (buffer.size >= 480) buffer.removeFirst()
+                    buffer.addLast(m)
+                    val now = System.currentTimeMillis()
+                    if (now - lastFlush >= flushIntervalMs.toLong()) {
+                        AppLog.d("MainActivity", "Flushing: ${buffer.size}")
+                        lastFlush = now
+                        val result = buffer.toList()
+                        withContext(Dispatchers.Main) { value = result }
                     }
                 }
             }
@@ -93,10 +90,12 @@ private fun LidarScreen() {
         }
     }
     Column(modifier = Modifier.fillMaxSize()) {
-        LidarPlot(measurements, modifier = Modifier
-            .size(300.dp)
-            .background(Color.White)
-            .border(2.dp, color = Color.Blue))
+        LidarPlot(
+            measurements, modifier = Modifier
+                .size(300.dp)
+                .background(Color.White)
+                .border(2.dp, color = Color.Blue)
+        )
         Slider(
             value = flushIntervalMs,
             onValueChange = { flushIntervalMs = it },

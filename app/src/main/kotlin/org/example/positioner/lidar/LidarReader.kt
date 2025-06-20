@@ -21,11 +21,14 @@ import kotlinx.coroutines.flow.flowOn
 class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
     private val parser = LidarParser()
 
-    private enum class State { SYNC0, SYNC1, SYNC2, LOCKED }
+    private enum class State { SYNC0, SYNC1, SYNC2 }
 
     companion object {
         private const val TAG = "LidarReader"
+        private const val TAG_DEBUG = "LidarReaderDebug"
         private const val READ_TIMEOUT = 50
+
+        private const val RAW_DEBUG = false
 
         /**
          * Open the first available USB serial port (CP210x) with default settings.
@@ -67,92 +70,75 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
     // Stream measurements emitted by the lidar. The blocking serial reads are
     // executed on Dispatchers.IO thanks to [flowOn] below so the UI thread
     // never blocks.
+    // Create a flow of bytes read from the serial port, which can be intercepted or debugged.
+    // This flow emits bytes as they are read from the port.
+    private fun byteFlow(): Flow<Byte> = flow {
+        val buffer = ByteArray(64)
+        AppLog.d(TAG, "Starting raw hex dump")
+        while (true) {
+            val n = port.read(buffer, READ_TIMEOUT)
+            if (n > 0) {
+                if (RAW_DEBUG) {
+                    val hex = buffer.take(n).joinToString(" ") { b: Byte ->
+                        String.format("%02x", b.toInt() and 0xFF)
+                    }
+                    AppLog.d(TAG_DEBUG, hex)
+                }
+                buffer.take(n).forEach {
+                    emit(it)
+                }
+            }
+        }
+    }
+
+    // Refactored measurements() to use byteStream instead of directly reading port
     override fun measurements(): Flow<LidarMeasurement> = flow {
         val packet = ByteArray(47)
-        val buf = ByteArray(1)
         val header0 = 0x54.toByte()
         val header1 = 0x2C.toByte()
 
-        suspend fun FlowCollector<LidarMeasurement>.emitPacket() {
+        suspend fun FlowCollector<LidarMeasurement>.emitPacket(packet: ByteArray) {
             try {
                 val measures = parser.parse(packet)
                 AppLog.d(TAG, "Parsed packet with ${measures.size} measurements")
-                for (m in measures) emit(m)
+                measures.forEach { emit(it) }
             } catch (e: IllegalArgumentException) {
                 AppLog.d(TAG, "Malformed packet", e)
             }
         }
 
         var state = State.SYNC0
-        AppLog.d(TAG, "Starting measurement loop")
-        while (true) {
+        var offset = 0
+
+        AppLog.d(TAG, "Starting measurement loop (byteStream version)")
+
+        byteFlow().flowOn(Dispatchers.IO).collect { byte ->
             when (state) {
                 State.SYNC0 -> {
-                    if (port.read(buf, READ_TIMEOUT) == 1 && buf[0] == header0) {
-                        packet[0] = header0
+                    if (byte == header0) {
+                        packet[offset++] = header0
                         state = State.SYNC1
                     }
                 }
+
                 State.SYNC1 -> {
-                    if (port.read(buf, READ_TIMEOUT) == 1 && buf[0] == header1) {
-                        packet[1] = header1
+                    if (byte == header1) {
+                        packet[offset++] = header1
                         state = State.SYNC2
                     } else {
                         state = State.SYNC0
                     }
                 }
-                State.SYNC2 -> {
-                    var offset = 2
-                    while (offset < packet.size) {
-                        val slice = ByteArray(packet.size - offset)
-                        val r = port.read(slice, READ_TIMEOUT)
-                        if (r <= 0) break
-                        System.arraycopy(slice, 0, packet, offset, r)
-                        offset += r
-                    }
-                    if (offset != packet.size) {
-                        state = State.SYNC0
-                        continue
-                    }
-                    emitPacket()
-                    state = State.LOCKED
-                }
-                State.LOCKED -> {
-                    var offset = 0
-                    while (offset < packet.size) {
-                        val slice = ByteArray(packet.size - offset)
-                        val r = port.read(slice, READ_TIMEOUT)
-                        if (r <= 0) break
-                        System.arraycopy(slice, 0, packet, offset, r)
-                        offset += r
-                    }
-                    if (offset != packet.size || packet[0] != header0) {
-                        AppLog.d(TAG, "Serial sync lost")
-                        state = State.SYNC0
-                        continue
-                    }
-                    emitPacket()
-                }
-            }
-        }
-    }.flowOn(Dispatchers.IO)
 
-    /**
-     * Debug helper that continuously reads raw bytes from the serial port and
-     * logs them in hex format. This ignores packet boundaries and is useful
-     * when verifying the raw lidar output.
-     */
-    fun debugReadHex(): Flow<Unit> = flow<Unit> {
-        val buffer = ByteArray(64)
-        AppLog.d(TAG, "Starting raw hex dump")
-        while (true) {
-            val n = port.read(buffer, READ_TIMEOUT)
-            if (n > 0) {
-                val hex = buffer.take(n).joinToString(" ") { b: Byte ->
-                    String.format("%02x", b.toInt() and 0xFF)
+                State.SYNC2 -> {
+                    packet[offset++] = byte
+                    if (offset >= packet.size) {
+                        emitPacket(packet)
+                        offset = 0
+                        state = State.SYNC0
+                    }
                 }
-                AppLog.d(TAG, hex)
             }
         }
-    }.flowOn(Dispatchers.IO)
+    }
 }
