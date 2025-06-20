@@ -39,7 +39,7 @@ class LidarParser {
             stopAngle += 360f
         }
         val step = (stopAngle - startAngle) / (MEASUREMENT_LENGTH - 1)
-        AppLog.d(TAG, "startAngle=${'$'}startAngle stopAngle=${'$'}stopAngle")
+        AppLog.d(TAG, "startAngle=$startAngle stopAngle=$stopAngle")
         val result = mutableListOf<LidarMeasurement>()
         for (i in 0 until MEASUREMENT_LENGTH) {
             val angle = startAngle + step * i

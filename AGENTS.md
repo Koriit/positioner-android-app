@@ -12,3 +12,6 @@
 ## Documentation
 - Place any additional docs in the `docs/` directory using AsciiDoc (`.adoc`).
 
+## Python reference
+Python reference implementation for working with my lidar device csn be found at: https://gibbard.me/lidar/
+

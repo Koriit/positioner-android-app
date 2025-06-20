@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import java.io.IOException
 
 /**
  * Continuously read measurement packets from the serial port and emit
@@ -52,6 +51,7 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
                 return null
             }
             val port: UsbSerialPort = driver.ports[0]
+            AppLog.d(TAG, "Opening serial connection")
             port.open(connection)
             port.setParameters(230400, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
             // start continuous scan mode (0xA5 0x60)
@@ -95,7 +95,7 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
                 val measures = parser.parse(packet)
                 AppLog.d(
                     TAG,
-                    "Parsed packet with ${'$'}{measures.size} measurements"
+                    "Parsed packet with ${measures.size} measurements"
                 )
                 for (m in measures) emit(m)
             } catch (e: IllegalArgumentException) {

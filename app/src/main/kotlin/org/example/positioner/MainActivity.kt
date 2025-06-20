@@ -3,10 +3,13 @@ package org.example.positioner
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -20,10 +23,10 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.flow.collect
 import org.example.positioner.lidar.LidarMeasurement
 import org.example.positioner.lidar.LidarPlot
 import org.example.positioner.lidar.LidarReader
@@ -70,6 +73,7 @@ private fun LidarScreen() {
                     buffer.addLast(m)
                     val now = System.currentTimeMillis()
                     if (now - lastFlush >= flushIntervalMs.toLong()) {
+                        AppLog.d("MainActivity", "Flushing: ${buffer.size}")
                         lastFlush = now
                         val result = buffer.toList()
                         withContext(Dispatchers.Main) { value = result }
@@ -81,7 +85,10 @@ private fun LidarScreen() {
         }
     }
     Column(modifier = Modifier.fillMaxSize()) {
-        LidarPlot(measurements, modifier = Modifier.weight(1f))
+        LidarPlot(measurements, modifier = Modifier
+            .size(300.dp)
+            .background(Color.White)
+            .border(2.dp, color = Color.Blue))
         Slider(
             value = flushIntervalMs,
             onValueChange = { flushIntervalMs = it },

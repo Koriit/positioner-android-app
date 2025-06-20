@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.tooling.preview.Preview
 import kotlin.math.min
 
 /**
@@ -23,4 +24,15 @@ fun LidarPlot(measurements: List<LidarMeasurement>, modifier: Modifier = Modifie
             drawCircle(Color.Red, radius = 3f, center = Offset(px, py))
         }
     }
+}
+
+@Preview
+@Composable
+fun PreviewLidarPlot() {
+    LidarPlot(measurements = listOf(
+        LidarMeasurement(2.0f, 2, 2),
+        LidarMeasurement(22.0f, 2, 2),
+        LidarMeasurement(42.0f, 2, 2),
+        LidarMeasurement(62.0f, 2, 2),
+    ))
 }
