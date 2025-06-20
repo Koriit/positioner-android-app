@@ -1,0 +1,3 @@
+== Debug hex mode
+
+Set `RAW_DEBUG = true` in `MainActivity.kt` to log raw bytes from the lidar device. The `debugReadHex()` method will print each chunk of data as space separated hexadecimal values.

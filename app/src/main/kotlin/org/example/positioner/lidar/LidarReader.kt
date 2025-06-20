@@ -9,6 +9,7 @@ import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.flowOn
  */
 class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
     private val parser = LidarParser()
+
+    private enum class State { SYNC0, SYNC1, SYNC2, LOCKED }
 
     companion object {
         private const val TAG = "LidarReader"
@@ -54,9 +57,9 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
             AppLog.d(TAG, "Opening serial connection")
             port.open(connection)
             port.setParameters(230400, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
-            // start continuous scan mode (0xA5 0x60)
-            AppLog.d(TAG, "Sending start scan command")
-            port.write(byteArrayOf(0xA5.toByte(), 0x60.toByte()), READ_TIMEOUT)
+            // LD06 streams measurements continuously once powered so
+            // no initialization command is required. Simply open the
+            // serial connection and start reading packets.
             return LidarReader(port)
         }
     }
@@ -66,41 +69,89 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
     // never blocks.
     override fun measurements(): Flow<LidarMeasurement> = flow {
         val packet = ByteArray(47)
-        val header = byteArrayOf(0x54.toByte(), 0x2C.toByte())
-        val buffer = ByteArray(1)
-        AppLog.d(TAG, "Starting measurement loop")
-        while (true) {
-            // Continuously search for packet header. This loop runs until the
-            // coroutine is cancelled.
-            // Search for header byte 0x54
-            if (port.read(buffer, READ_TIMEOUT) != 1) continue
-            if (buffer[0] != header[0]) continue
-            if (port.read(buffer, READ_TIMEOUT) != 1 || buffer[0] != header[1]) continue
-            // read the rest of the packet
-            var read = 0
-            while (read < packet.size - 2) {
-                val slice = ByteArray(packet.size - 2 - read)
-                val r = port.read(slice, READ_TIMEOUT)
-                if (r <= 0) break
-                System.arraycopy(slice, 0, packet, 2 + read, r)
-                read += r
-            }
-            if (read != packet.size - 2) {
-                AppLog.d(TAG, "Incomplete packet read: $read bytes")
-                continue
-            }
-            packet[0] = header[0]
-            packet[1] = header[1]
+        val buf = ByteArray(1)
+        val header0 = 0x54.toByte()
+        val header1 = 0x2C.toByte()
+
+        suspend fun FlowCollector<LidarMeasurement>.emitPacket() {
             try {
                 val measures = parser.parse(packet)
-                AppLog.d(
-                    TAG,
-                    "Parsed packet with ${measures.size} measurements"
-                )
+                AppLog.d(TAG, "Parsed packet with ${measures.size} measurements")
                 for (m in measures) emit(m)
             } catch (e: IllegalArgumentException) {
-                // Skip malformed packets but log the error for debugging
                 AppLog.d(TAG, "Malformed packet", e)
+            }
+        }
+
+        var state = State.SYNC0
+        AppLog.d(TAG, "Starting measurement loop")
+        while (true) {
+            when (state) {
+                State.SYNC0 -> {
+                    if (port.read(buf, READ_TIMEOUT) == 1 && buf[0] == header0) {
+                        packet[0] = header0
+                        state = State.SYNC1
+                    }
+                }
+                State.SYNC1 -> {
+                    if (port.read(buf, READ_TIMEOUT) == 1 && buf[0] == header1) {
+                        packet[1] = header1
+                        state = State.SYNC2
+                    } else {
+                        state = State.SYNC0
+                    }
+                }
+                State.SYNC2 -> {
+                    var offset = 2
+                    while (offset < packet.size) {
+                        val slice = ByteArray(packet.size - offset)
+                        val r = port.read(slice, READ_TIMEOUT)
+                        if (r <= 0) break
+                        System.arraycopy(slice, 0, packet, offset, r)
+                        offset += r
+                    }
+                    if (offset != packet.size) {
+                        state = State.SYNC0
+                        continue
+                    }
+                    emitPacket()
+                    state = State.LOCKED
+                }
+                State.LOCKED -> {
+                    var offset = 0
+                    while (offset < packet.size) {
+                        val slice = ByteArray(packet.size - offset)
+                        val r = port.read(slice, READ_TIMEOUT)
+                        if (r <= 0) break
+                        System.arraycopy(slice, 0, packet, offset, r)
+                        offset += r
+                    }
+                    if (offset != packet.size || packet[0] != header0) {
+                        AppLog.d(TAG, "Serial sync lost")
+                        state = State.SYNC0
+                        continue
+                    }
+                    emitPacket()
+                }
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
+    /**
+     * Debug helper that continuously reads raw bytes from the serial port and
+     * logs them in hex format. This ignores packet boundaries and is useful
+     * when verifying the raw lidar output.
+     */
+    fun debugReadHex(): Flow<Unit> = flow<Unit> {
+        val buffer = ByteArray(64)
+        AppLog.d(TAG, "Starting raw hex dump")
+        while (true) {
+            val n = port.read(buffer, READ_TIMEOUT)
+            if (n > 0) {
+                val hex = buffer.take(n).joinToString(" ") { b: Byte ->
+                    String.format("%02x", b.toInt() and 0xFF)
+                }
+                AppLog.d(TAG, hex)
             }
         }
     }.flowOn(Dispatchers.IO)

@@ -51,6 +51,9 @@ fun PositionerApp() {
     }
 }
 
+
+private const val RAW_DEBUG = false
+
 @Composable
 private fun LidarScreen() {
     var flushIntervalMs by remember { mutableStateOf(100f) }
@@ -66,17 +69,22 @@ private fun LidarScreen() {
                 AppLog.d("MainActivity", "Using FakeLidarReader")
                 FakeLidarReader()
             } else realReader
-            AppLog.d("MainActivity", "Starting measurement collection")
-            withContext(Dispatchers.IO) {
-                source.measurements().collect { m ->
-                    if (buffer.size >= 480) buffer.removeFirst()
-                    buffer.addLast(m)
-                    val now = System.currentTimeMillis()
-                    if (now - lastFlush >= flushIntervalMs.toLong()) {
-                        AppLog.d("MainActivity", "Flushing: ${buffer.size}")
-                        lastFlush = now
-                        val result = buffer.toList()
-                        withContext(Dispatchers.Main) { value = result }
+            if (RAW_DEBUG && source is LidarReader) {
+                AppLog.d("MainActivity", "Starting raw hex debug")
+                withContext(Dispatchers.IO) { source.debugReadHex().collect { } }
+            } else {
+                AppLog.d("MainActivity", "Starting measurement collection")
+                withContext(Dispatchers.IO) {
+                    source.measurements().collect { m ->
+                        if (buffer.size >= 480) buffer.removeFirst()
+                        buffer.addLast(m)
+                        val now = System.currentTimeMillis()
+                        if (now - lastFlush >= flushIntervalMs.toLong()) {
+                            AppLog.d("MainActivity", "Flushing: ${buffer.size}")
+                            lastFlush = now
+                            val result = buffer.toList()
+                            withContext(Dispatchers.Main) { value = result }
+                        }
                     }
                 }
             }
