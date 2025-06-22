@@ -54,6 +54,7 @@ dependencies {
     implementation(libs.coroutines)
     implementation(libs.usbserial)
     implementation(libs.serialization.json)
+    implementation(libs.datetime)
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(libs.junit.jupiter)

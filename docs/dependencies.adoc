@@ -32,6 +32,9 @@ This project uses a small set of libraries. The table below explains why each de
 |Kotlin Serialization
 |Encodes recorded lidar sessions as JSON when saving to local storage.
 
+|Kotlinx DateTime
+|Represents timestamps using `Instant` with ISO-8601 serialization.
+
 |JUnit Jupiter
 |Runs unit tests written with JUnit 5.
 
