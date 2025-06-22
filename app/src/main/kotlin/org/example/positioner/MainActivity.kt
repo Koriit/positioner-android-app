@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Button
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
@@ -36,7 +35,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.encodeToString
+import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
 import org.example.positioner.lidar.LidarMeasurement
 import org.example.positioner.lidar.LidarPlot
@@ -65,7 +64,7 @@ fun PositionerApp() {
 @Composable
 private fun LidarScreen() {
     var flushIntervalMs by remember { mutableStateOf(100f) }
-    var rotate90 by remember { mutableStateOf(false) }
+    var rotation by remember { mutableStateOf(0) }
     var autoScale by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
     val sessionData = remember { mutableStateListOf<LidarMeasurement>() }
@@ -76,9 +75,11 @@ private fun LidarScreen() {
     ) { uri ->
         uri?.let {
             context.contentResolver.openOutputStream(it)?.use { out ->
-                val json = Json.encodeToString(sessionData)
+                val json = Json.encodeToString(sessionData.toList())
+                sessionData.clear()
                 out.write(json.toByteArray())
             }
+
         }
     }
     val measurements by produceState(
@@ -104,7 +105,7 @@ private fun LidarScreen() {
                     if (recording) sessionData.add(m)
                     val now = System.currentTimeMillis()
                     if (now - lastFlush >= flushIntervalMs.toLong()) {
-                        AppLog.d("MainActivity", "Flushing: ${buffer.size}")
+//                        AppLog.d("MainActivity", "Flushing: ${buffer.size}")
                         lastFlush = now
                         val result = buffer.toList()
                         withContext(Dispatchers.Main) { value = result }
@@ -117,16 +118,18 @@ private fun LidarScreen() {
     }
     Column(modifier = Modifier.fillMaxSize()) {
         LidarPlot(
-            measurements, modifier = Modifier
+            measurements,
+            modifier = Modifier
                 .size(300.dp)
                 .background(Color.White)
                 .border(2.dp, color = Color.Blue),
-            rotate90 = rotate90,
+            rotation = rotation,
             autoScale = autoScale,
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = rotate90, onCheckedChange = { rotate90 = it })
-            Text("Rotate 90°")
+            Button(onClick = { rotation += 90 }) {
+                Text("Rotate 90°")
+            }
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = autoScale, onCheckedChange = { autoScale = it })
@@ -139,7 +142,11 @@ private fun LidarScreen() {
             Button(onClick = { sessionData.clear() }) {
                 Text("Reset")
             }
-            Button(onClick = { saveLauncher.launch("lidar-session.json") }) {
+            Button(onClick = {
+                recording = !recording
+                val timestamp = Clock.System.now().toString().replace(":", "-")
+                saveLauncher.launch("lidar-session-$timestamp.json")
+            }) {
                 Text("Save")
             }
         }

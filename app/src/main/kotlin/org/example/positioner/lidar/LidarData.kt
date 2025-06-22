@@ -7,7 +7,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 
-
 /**
  * Single measurement from the LIDAR.
  */

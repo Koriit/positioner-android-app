@@ -1,0 +1,22 @@
+= LD06 lidar
+
+== Data frame
+Each data frame from the LD06 is 47 bytes long. link:https://github.com/ldrobotSensorTeam/ldlidar_stl_ros2/blob/bf668a89baf722a787dadc442860dcbf33a82f5a/ldlidar_driver/include/dataprocess/lipkg.h#L48[Source]. Here are the fields:
+
+[cols="1,2,4,2", options="header"]
+|===
+| Byte(s)      | Field Name         | Description                                          | Type / Size
+
+| 0            | Frame Header       | Fixed value `0x54`                                   | uint8
+| 1            | Version & Length   | Usually `0x2C` (length = 44 + 2 bytes)               | uint8
+| 2            | Speed_L            | Low byte of rotational speed in RPM                 | uint8
+| 3            | Speed_H            | High byte of rotational speed                       | uint8
+| 4            | Start Angle_L      | Low byte of start angle (hundredths of a degree)    | uint8
+| 5            | Start Angle_H      | High byte of start angle                            | uint8
+| 6–41         | Point Data         | 12 points × 3 bytes: Distance_L, Distance_H, Intensity | 36 bytes
+| 42           | End Angle_L        | Low byte of end angle                               | uint8
+| 43           | End Angle_H        | High byte of end angle                              | uint8
+| 44           | Timestamp_L        | Low byte of timestamp                               | uint8
+| 45           | Timestamp_H        | High byte of timestamp                              | uint8
+| 46           | Checksum           | XOR of bytes 0 to 45                                | uint8
+|===

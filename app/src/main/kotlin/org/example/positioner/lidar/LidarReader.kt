@@ -100,7 +100,7 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
         suspend fun FlowCollector<LidarMeasurement>.emitPacket(packet: ByteArray) {
             try {
                 val measures = parser.parse(packet)
-                AppLog.d(TAG, "Parsed packet with ${measures.size} measurements")
+//                AppLog.d(TAG, "Parsed packet with ${measures.size} measurements")
                 measures.forEach { emit(it) }
             } catch (e: IllegalArgumentException) {
                 AppLog.d(TAG, "Malformed packet", e)

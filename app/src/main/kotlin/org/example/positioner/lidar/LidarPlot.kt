@@ -15,23 +15,28 @@ import kotlin.math.min
 fun LidarPlot(
     measurements: List<LidarMeasurement>,
     modifier: Modifier = Modifier,
-    rotate90: Boolean = false,
+    rotation: Int = 0,
     autoScale: Boolean = false,
 ) {
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
             var (x, y) = m.toPoint()
-            if (rotate90) {
-                val rx = y
-                val ry = -x
+            if (rotation != 0) {
+                val angleRad = Math.toRadians(rotation.toDouble())
+                val cos = kotlin.math.cos(angleRad).toFloat()
+                val sin = kotlin.math.sin(angleRad).toFloat()
+                val rx = x * cos - y * sin
+                val ry = x * sin + y * cos
                 x = rx
                 y = ry
             }
-            x to y
+            Triple(x, y, m.confidence)
         }
 
         val maxRange = if (autoScale) {
-            points.maxOfOrNull { (x, y) -> kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat() }
+            points.maxOfOrNull { (x, y, _) ->
+                kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat()
+            }
                 ?: 1f
         } else {
             4f // metres, matches python default
@@ -39,10 +44,22 @@ fun LidarPlot(
 
         val scale = min(size.width, size.height) / (maxRange * 2f)
         val center = Offset(size.width / 2f, size.height / 2f)
-        points.forEach { (x, y) ->
+
+        points.forEach { (x, y, confidence) ->
             val px = center.x + x * scale
             val py = center.y - y * scale
-            drawCircle(Color.Red, radius = 3f, center = Offset(px, py))
+
+            // Create gradient color based on confidence (0-255)
+            // 0 = red (low confidence), 255 = green (high confidence)
+            val normalizedConfidence = confidence / 255f
+            val color = Color(
+                red = 1f - normalizedConfidence,
+                green = normalizedConfidence,
+                blue = 0f,
+                alpha = 1f
+            )
+
+            drawCircle(color, radius = 3f, center = Offset(px, py))
         }
     }
 }
@@ -52,12 +69,12 @@ fun LidarPlot(
 fun PreviewLidarPlot() {
     LidarPlot(
         measurements = listOf(
-        LidarMeasurement(2.0f, 2, 2),
-        LidarMeasurement(22.0f, 2, 2),
-        LidarMeasurement(42.0f, 2, 2),
-        LidarMeasurement(62.0f, 2, 2),
+            LidarMeasurement(2.0f, 2, 50),   // Low confidence
+            LidarMeasurement(22.0f, 2, 128), // Medium confidence
+            LidarMeasurement(42.0f, 2, 200), // High confidence
+            LidarMeasurement(62.0f, 2, 255), // Maximum confidence
         ),
-        rotate90 = true,
+        rotation = 0,
         autoScale = true,
     )
 }

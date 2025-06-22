@@ -1,10 +1,12 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="org.example.positioner">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
     <uses-feature android:name="android.hardware.usb.host" />
     <application
         android:label="Positioner App"
         android:theme="@style/Theme.Positioner">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
