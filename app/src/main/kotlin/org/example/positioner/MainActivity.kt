@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.Alignment
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
@@ -55,6 +58,8 @@ fun PositionerApp() {
 @Composable
 private fun LidarScreen() {
     var flushIntervalMs by remember { mutableStateOf(100f) }
+    var rotate90 by remember { mutableStateOf(false) }
+    var autoScale by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val logs by AppLog.logs.collectAsState()
     val measurements by produceState(
@@ -94,8 +99,18 @@ private fun LidarScreen() {
             measurements, modifier = Modifier
                 .size(300.dp)
                 .background(Color.White)
-                .border(2.dp, color = Color.Blue)
+                .border(2.dp, color = Color.Blue),
+            rotate90 = rotate90,
+            autoScale = autoScale,
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = rotate90, onCheckedChange = { rotate90 = it })
+            Text("Rotate 90°")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = autoScale, onCheckedChange = { autoScale = it })
+            Text("Auto scale")
+        }
         Slider(
             value = flushIntervalMs,
             onValueChange = { flushIntervalMs = it },

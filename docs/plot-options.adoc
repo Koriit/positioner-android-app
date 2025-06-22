@@ -1,0 +1,6 @@
+== Plot display options
+
+Two controls below the plot adjust how lidar measurements are rendered.
+
+* **Rotate 90\u00B0** - rotates the coordinate system clockwise by ninety degrees. Use this when the sensor orientation doesn't match the default plot.
+* **Auto scale** - automatically scales the plot so that all current measurements fit inside the canvas.
