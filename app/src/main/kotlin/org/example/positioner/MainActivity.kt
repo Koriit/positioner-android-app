@@ -67,6 +67,7 @@ private fun LidarScreen() {
     var rotation by remember { mutableStateOf(0) }
     var autoScale by remember { mutableStateOf(false) }
     var recording by remember { mutableStateOf(false) }
+    var confidenceThreshold by remember { mutableStateOf(200f) }
     val sessionData = remember { mutableStateListOf<LidarMeasurement>() }
     val context = LocalContext.current
     val logs by AppLog.logs.collectAsState()
@@ -86,7 +87,8 @@ private fun LidarScreen() {
         initialValue = emptyList<LidarMeasurement>(),
         context,
         flushIntervalMs,
-        recording
+        recording,
+        confidenceThreshold
     ) {
         val buffer = ArrayDeque<LidarMeasurement>()
         var lastFlush = System.currentTimeMillis()
@@ -100,9 +102,11 @@ private fun LidarScreen() {
             AppLog.d("MainActivity", "Starting measurement collection")
             withContext(Dispatchers.IO) {
                 source.measurements().flowOn(Dispatchers.IO).collect { m ->
-                    if (buffer.size >= 480) buffer.removeFirst()
-                    buffer.addLast(m)
-                    if (recording) sessionData.add(m)
+                    if (m.confidence >= confidenceThreshold.toInt()) {
+                        if (buffer.size >= 480) buffer.removeFirst()
+                        buffer.addLast(m)
+                        if (recording) sessionData.add(m)
+                    }
                     val now = System.currentTimeMillis()
                     if (now - lastFlush >= flushIntervalMs.toLong()) {
 //                        AppLog.d("MainActivity", "Flushing: ${buffer.size}")
@@ -125,6 +129,7 @@ private fun LidarScreen() {
                 .border(2.dp, color = Color.Blue),
             rotation = rotation,
             autoScale = autoScale,
+            confidenceThreshold = confidenceThreshold.toInt(),
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { rotation += 90 }) {
@@ -157,6 +162,13 @@ private fun LidarScreen() {
             modifier = Modifier.fillMaxWidth()
         )
         Text("Flush interval: ${flushIntervalMs.toInt()} ms")
+        Slider(
+            value = confidenceThreshold,
+            onValueChange = { confidenceThreshold = it },
+            valueRange = 0f..255f,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text("Confidence threshold: ${confidenceThreshold.toInt()}")
         LogView(logs, modifier = Modifier.height(160.dp))
     }
 }
