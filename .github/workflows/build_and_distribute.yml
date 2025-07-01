@@ -1,0 +1,44 @@
+name: Build and Distribute APK
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_and_distribute:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions@v3
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Run SDK setup script
+        run: scripts/setup_android_sdk.sh
+
+      - name: Create google-services.json
+        run: echo ${{ secrets.GOOGLE_SERVICES_JSON }} | base64 -d > app/google-services.json
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Distribute to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1.7.1
+        with:
+          appId: 1:511213980076:android:9fc87a24602fc77ca85209
+          token: ${{ secrets.FIREBASE_TOKEN }}
+          groups: dev
+          file: app/build/outputs/apk/release/app-release.apk
+          releaseNotes: "Automated build from GitHub Actions for dev testing"
