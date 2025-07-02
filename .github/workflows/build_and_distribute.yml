@@ -54,6 +54,6 @@ jobs:
             app/build/outputs/apk/release/app-release.apk \
             --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} \
             --release-notes "Automated build from GitHub Actions. See latest changes." \
-            --group-alias "dev"
+            --groups "dev"
         env:
           GOOGLE_APPLICATION_CREDENTIALS: service-account.json
