@@ -3,7 +3,7 @@ name: Build and Distribute APK
 on:
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build_and_distribute:
