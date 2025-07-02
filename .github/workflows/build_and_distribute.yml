@@ -1,9 +1,6 @@
 name: Build and Distribute APK
 
-on:
-  push:
-    branches:
-      - main
+on: workflow_dispatch
 
 jobs:
   build_and_distribute:
@@ -51,7 +48,7 @@ jobs:
       - name: Distribute to Firebase App Distribution
         run: |
           firebase appdistribution:distribute \
-            app/build/outputs/apk/release/app-release.apk \
+            app/build/outputs/apk/release/app-release-unsigned.apk \
             --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} \
             --release-notes "Automated build from GitHub Actions. See latest changes." \
             --groups "dev"
