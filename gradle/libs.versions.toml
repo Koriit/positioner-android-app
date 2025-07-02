@@ -1,6 +1,7 @@
 [versions]
 android-gradle = "8.10.1"
 compose-bom = "2024.05.00"
+google-services = "4.4.2"
 firebase-bom = "33.1.2"
 junit-jupiter = "5.11.3"
 kotlin = "2.1.0"
@@ -28,3 +29,4 @@ android-application = { id = "com.android.application", version.ref = "android-g
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
