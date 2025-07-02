@@ -1,7 +1,7 @@
 [versions]
 android-gradle = "8.10.1"
 compose-bom = "2024.05.00"
-google-services = "4.4.2"
+google-services = "4.4.3"
 firebase-bom = "33.1.2"
 junit-jupiter = "5.11.3"
 kotlin = "2.1.0"
