@@ -5,7 +5,7 @@
         android:label="Positioner App"
         android:theme="@style/Theme.Positioner">
         <activity
-            android:name=".MainActivity"
+            android:name="com.koriit.positioner.android.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

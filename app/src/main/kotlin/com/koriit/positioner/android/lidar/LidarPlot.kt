@@ -1,4 +1,4 @@
-package org.example.positioner.lidar
+package com.koriit.positioner.android.lidar
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable

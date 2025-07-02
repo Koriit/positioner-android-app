@@ -1,4 +1,4 @@
-package org.example.positioner.lidar
+package com.koriit.positioner.android.lidar
 
 import kotlin.math.cos
 import kotlin.math.sin

@@ -1,6 +1,6 @@
-package org.example.positioner.lidar
+package com.koriit.positioner.android.lidar
 
-import org.example.positioner.logging.AppLog
+import com.koriit.positioner.android.logging.AppLog
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 

@@ -1,4 +1,4 @@
-package org.example.positioner.lidar
+package com.koriit.positioner.android.lidar
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

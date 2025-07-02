@@ -1,4 +1,4 @@
-package org.example.positioner
+package com.koriit.positioner.android
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -37,13 +37,13 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
 import kotlinx.serialization.json.Json
-import org.example.positioner.lidar.LidarMeasurement
-import org.example.positioner.lidar.LidarPlot
-import org.example.positioner.lidar.LidarReader
-import org.example.positioner.lidar.LidarDataSource
-import org.example.positioner.lidar.FakeLidarReader
-import org.example.positioner.logging.AppLog
-import org.example.positioner.logging.LogView
+import com.koriit.positioner.android.lidar.LidarMeasurement
+import com.koriit.positioner.android.lidar.LidarPlot
+import com.koriit.positioner.android.lidar.LidarReader
+import com.koriit.positioner.android.lidar.LidarDataSource
+import com.koriit.positioner.android.lidar.FakeLidarReader
+import com.koriit.positioner.android.logging.AppLog
+import com.koriit.positioner.android.logging.LogView
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

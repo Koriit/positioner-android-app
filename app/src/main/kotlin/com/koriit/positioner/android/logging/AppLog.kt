@@ -1,4 +1,4 @@
-package org.example.positioner.logging
+package com.koriit.positioner.android.logging
 
 import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow

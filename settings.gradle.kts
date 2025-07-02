@@ -4,6 +4,11 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+
+    plugins {
+        id("com.google.gms.google-services") version "4.4.3"
+        id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
+    }
 }
 
 dependencyResolutionManagement {
@@ -13,10 +18,6 @@ dependencyResolutionManagement {
         mavenCentral()
         maven("https://jitpack.io")
     }
-}
-
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.9.0"
 }
 
 rootProject.name = "positioner-android-app"

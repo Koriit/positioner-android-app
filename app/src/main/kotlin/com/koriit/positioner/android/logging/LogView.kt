@@ -1,4 +1,4 @@
-package org.example.positioner.logging
+package com.koriit.positioner.android.logging
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyColumn

@@ -1,0 +1,59 @@
+name: Build and Distribute APK
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build_and_distribute:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions@v3
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Run SDK setup script
+        run: scripts/setup_android_sdk.sh
+
+      - name: Create google-services.json
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate Firebase CLI with Service Account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
+        shell: bash
+
+      - name: Distribute to Firebase App Distribution
+        run: |
+          firebase appdistribution:distribute \
+            app/build/outputs/apk/release/app-release.apk \
+            --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} \
+            --release-notes "Automated build from GitHub Actions. See latest changes." \
+            --group-alias "dev"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
