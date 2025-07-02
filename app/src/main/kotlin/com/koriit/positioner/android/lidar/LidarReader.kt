@@ -1,10 +1,10 @@
-package org.example.positioner.lidar
+package com.koriit.positioner.android.lidar
 
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.hardware.usb.UsbManager
-import org.example.positioner.logging.AppLog
+import com.koriit.positioner.android.logging.AppLog
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.Dispatchers
@@ -50,7 +50,7 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
                 val pi = PendingIntent.getBroadcast(
                     context,
                     0,
-                    Intent("org.example.positioner.USB_PERMISSION"),
+                    Intent("com.koriit.positioner.android.USB_PERMISSION"),
                     PendingIntent.FLAG_IMMUTABLE
                 )
                 manager.requestPermission(driver.device, pi)

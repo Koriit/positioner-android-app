@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "org.example.positioner"
+    namespace = "com.koriit.positioner.android"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "org.example.positioner"
+        applicationId = "com.koriit.positioner.android"
         minSdk = 21
         targetSdk = 34
         versionCode = 1
