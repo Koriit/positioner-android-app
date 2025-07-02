@@ -42,9 +42,8 @@ jobs:
 
       - name: Build release APK
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEYSTORE_PASSWORD: '${{ secrets.KEYSTORE_PASSWORD }}'
+          KEY_ALIAS: '${{ secrets.KEY_ALIAS }}'
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Install Firebase CLI
