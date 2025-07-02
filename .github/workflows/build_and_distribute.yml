@@ -31,7 +31,17 @@ jobs:
         run: |
           echo "$GOOGLE_SERVICES_JSON" | base64 --decode > app/google-services.json
 
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/release-keystore.jks
+
       - name: Build release APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: ./gradlew assembleRelease --no-daemon
 
       - name: Install Firebase CLI
@@ -48,7 +58,7 @@ jobs:
       - name: Distribute to Firebase App Distribution
         run: |
           firebase appdistribution:distribute \
-            app/build/outputs/apk/release/app-release-unsigned.apk \
+            app/build/outputs/apk/release/app-release.apk \
             --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} \
             --release-notes "Automated build from GitHub Actions. See latest changes." \
             --groups "dev"
