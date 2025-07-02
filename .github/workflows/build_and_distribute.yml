@@ -34,11 +34,21 @@ jobs:
       - name: Build release APK
         run: ./gradlew assembleRelease --no-daemon
 
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate Firebase CLI with Service Account
+        run: |
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}" > service-account.json
+          export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/service-account.json
+        shell: bash
+
       - name: Distribute to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1.7.1
-        with:
-          appId: 1:511213980076:android:9fc87a24602fc77ca85209
-          token: ${{ secrets.FIREBASE_TOKEN }}
-          groups: dev
-          file: app/build/outputs/apk/release/app-release.apk
-          releaseNotes: "Automated build from GitHub Actions for dev testing"
+        run: |
+          firebase appdistribution:distribute \
+            app/build/outputs/apk/release/app-release.apk \
+            --app ${{ secrets.FIREBASE_ANDROID_APP_ID }} \
+            --release-notes "Automated build from GitHub Actions. See latest changes." \
+            --group-alias "dev"
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: service-account.json
