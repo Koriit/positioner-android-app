@@ -1,0 +1,3 @@
+== Orientation support
+
+The main screen adapts to device orientation. In portrait mode the lidar canvas stretches across the full width with controls below. In landscape the canvas fills the screen height with controls arranged to the right.
