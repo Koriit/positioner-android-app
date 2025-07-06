@@ -34,26 +34,26 @@ fun SettingsScreen(vm: LidarViewModel, onBack: () -> Unit) {
             Checkbox(checked = showLogs, onCheckedChange = { vm.showLogs.value = it })
             Text("Show logs")
         }
+        Text("Flush interval: ${flushInterval.toInt()} ms")
         Slider(
             value = flushInterval,
             onValueChange = { vm.flushIntervalMs.value = it },
             valueRange = 50f..1000f,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text("Flush interval: ${flushInterval.toInt()} ms")
+        Text("Confidence threshold: ${confidence.toInt()}")
         Slider(
             value = confidence,
             onValueChange = { vm.confidenceThreshold.value = it },
             valueRange = 0f..255f,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text("Confidence threshold: ${confidence.toInt()}")
+        Text("Buffer size: $bufferSize")
         Slider(
             value = bufferSize.toFloat(),
             onValueChange = { vm.bufferSize.value = it.toInt() },
             valueRange = 100f..1000f,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text("Buffer size: $bufferSize")
     }
 }

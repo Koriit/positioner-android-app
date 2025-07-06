@@ -7,9 +7,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
 /**
@@ -60,21 +62,23 @@ fun LidarPlot(
             Triple(0, 255, 0.0)
         }
 
-        points.forEach { (x, y, confidence) ->
-            val px = center.x + x * scale
-            val py = center.y - y * scale
+        translate(left = center.x, top = center.y) {
+            points.forEach { (x, y, confidence) ->
+                val px = x * scale
+                val py = -y * scale
 
-            // Create gradient color based on confidence (0-255)
-            // 0 = red (low confidence), 255 = green (high confidence)
-            val normalizedConfidence = confidence / 255f
-            val color = Color(
-                red = 1f - normalizedConfidence,
-                green = normalizedConfidence,
-                blue = 0f,
-                alpha = 1f
-            )
+                // Create gradient color based on confidence (0-255)
+                // 0 = red (low confidence), 255 = green (high confidence)
+                val normalizedConfidence = confidence / 255f
+                val color = Color(
+                    red = 1f - normalizedConfidence,
+                    green = normalizedConfidence,
+                    blue = 0f,
+                    alpha = 1f
+                )
 
-            drawCircle(color, radius = 3f, center = Offset(px, py))
+                drawCircle(color, radius = 3f, center = Offset(px, py))
+            }
         }
 
         // Draw confidence indicators
@@ -97,9 +101,9 @@ private fun DrawScope.drawConfidenceIndicators(
             isAntiAlias = true
         }
 
-        val textPadding = 8f
-        val indicatorHeight = 20f
-        val indicatorWidth = 100f
+        val textPadding = 8.dp.toPx()
+        val indicatorHeight = 20.dp.toPx()
+        val indicatorWidth = 100.dp.toPx()
 
         // Background for indicators
         val bgPaint = android.graphics.Paint().apply {
@@ -126,16 +130,16 @@ private fun DrawScope.drawConfidenceIndicators(
             bgPaint
         )
         canvas.nativeCanvas.drawRect(
-            textPadding + 2f,
-            textPadding + 2f,
-            textPadding + 18f,
-            textPadding + 18f,
+            textPadding + 2.dp.toPx(),
+            textPadding + 2.dp.toPx(),
+            textPadding + 18.dp.toPx(),
+            textPadding + 18.dp.toPx(),
             minPaint
         )
         canvas.nativeCanvas.drawText(
             "Min: $minConf",
-            textPadding + 25f,
-            textPadding + 15f,
+            textPadding + 25.dp.toPx(),
+            textPadding + 15.dp.toPx(),
             paint
         )
 
@@ -158,16 +162,16 @@ private fun DrawScope.drawConfidenceIndicators(
             bgPaint
         )
         canvas.nativeCanvas.drawRect(
-            size.width - textPadding - indicatorWidth + 2f,
-            textPadding + 2f,
-            size.width - textPadding - indicatorWidth + 18f,
-            textPadding + 18f,
+            size.width - textPadding - indicatorWidth + 2.dp.toPx(),
+            textPadding + 2.dp.toPx(),
+            size.width - textPadding - indicatorWidth + 18.dp.toPx(),
+            textPadding + 18.dp.toPx(),
             maxPaint
         )
         canvas.nativeCanvas.drawText(
             "Max: $maxConf",
-            size.width - textPadding - indicatorWidth + 25f,
-            textPadding + 15f,
+            size.width - textPadding - indicatorWidth + 25.dp.toPx(),
+            textPadding + 15.dp.toPx(),
             paint
         )
 
@@ -181,16 +185,16 @@ private fun DrawScope.drawConfidenceIndicators(
         )
         canvas.nativeCanvas.drawText(
             "Avg: ${String.format("%.1f", avgConf)}",
-            textPadding + 5f,
-            size.height - textPadding - 5f,
+            textPadding + 5.dp.toPx(),
+            size.height - textPadding - 5.dp.toPx(),
             paint
         )
 
         // Confidence threshold (bottom-right)
-        val thresholdWidth = 150f
+        val thresholdWidth = 150.dp.toPx()
         canvas.nativeCanvas.drawRect(
             size.width - textPadding - thresholdWidth,
-            size.height - textPadding - 40f,
+            size.height - textPadding - 40.dp.toPx(),
             size.width - textPadding,
             size.height - textPadding,
             bgPaint
@@ -198,8 +202,8 @@ private fun DrawScope.drawConfidenceIndicators(
 
         canvas.nativeCanvas.drawText(
             "Threshold: $confidenceThreshold",
-            size.width - textPadding - thresholdWidth + 5f,
-            size.height - textPadding - 20f,
+            size.width - textPadding - thresholdWidth + 5.dp.toPx(),
+            size.height - textPadding - 20.dp.toPx(),
             paint
         )
     }
