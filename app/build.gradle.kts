@@ -1,5 +1,6 @@
 plugins {
     id("com.google.gms.google-services")
+    alias(libs.plugins.firebase.crashlytics)
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -70,6 +71,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.crashlytics)
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(libs.junit.jupiter)

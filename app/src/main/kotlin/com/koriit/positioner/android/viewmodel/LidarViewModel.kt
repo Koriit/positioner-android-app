@@ -10,6 +10,8 @@ import com.koriit.positioner.android.lidar.LidarDataSource
 import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.logging.AppLog
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.crashlytics.ktx.crashlytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,6 +71,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 }
             } catch (e: Exception) {
                 AppLog.d("LidarViewModel", "Measurement loop failed", e)
+                Firebase.crashlytics.recordException(e)
             }
         }
     }

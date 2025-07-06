@@ -27,7 +27,7 @@ This project uses a small set of libraries. The table below explains why each de
 |Used by `LidarReader` to stream measurements asynchronously.
 
 |usb-serial-for-android
-|Accesses the CP210x USB serial device to read lidar packets.
+|Accesses the CP210x USB serial device to read lidar packets. Updated to 3.9.0 for stability when hot-plugging.
 
 |Kotlin Serialization
 |Encodes recorded lidar sessions as JSON when saving to local storage.
@@ -43,4 +43,6 @@ This project uses a small set of libraries. The table below explains why each de
 
 |JUnit Platform Launcher
 |Allows Gradle to execute JUnit 5 tests.
+|Firebase Crashlytics
+|Collects crash reports for real user sessions.
 |===
