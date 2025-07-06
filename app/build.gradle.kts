@@ -66,6 +66,8 @@ dependencies {
     implementation(libs.usbserial)
     implementation(libs.serialization.json)
     implementation(libs.datetime)
+    implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.lifecycle.viewmodel.compose)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     debugImplementation("androidx.compose.ui:ui-tooling")
