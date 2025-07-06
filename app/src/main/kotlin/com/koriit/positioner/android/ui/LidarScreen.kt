@@ -5,8 +5,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -58,40 +61,85 @@ fun LidarScreen(vm: LidarViewModel, onOpenSettings: () -> Unit) {
     val showLogs by vm.showLogs.collectAsState()
     val recording by vm.recording.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
+    val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { vm.saveSession(it, context) }
     }
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = onOpenSettings) { Text("Settings") }
-        }
-        LidarPlot(
-            measurements,
-            modifier = Modifier
-                .size(300.dp)
-                .background(Color.White)
-                .border(2.dp, color = Color.Blue),
-            rotation = rotation,
-            autoScale = autoScale,
-            confidenceThreshold = confidence.toInt(),
-        )
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
-        }
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = { vm.toggleRecording() }) {
-                Text(if (recording) "Stop Recording" else "Start Recording")
+
+    val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+
+    if (isPortrait) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onOpenSettings) { Text("Settings") }
             }
-            Button(onClick = { vm.clearSession() }) { Text("Reset") }
-            Button(onClick = {
-                vm.toggleRecording()
-                val timestamp = Clock.System.now().toString().replace(":", "-")
-                saveLauncher.launch("lidar-session-$timestamp.json")
-            }) { Text("Save") }
+            LidarPlot(
+                measurements,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.White)
+                    .border(2.dp, color = Color.Blue),
+                rotation = rotation,
+                autoScale = autoScale,
+                confidenceThreshold = confidence.toInt(),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = { vm.toggleRecording() }) {
+                    Text(if (recording) "Stop Recording" else "Start Recording")
+                }
+                Button(onClick = { vm.clearSession() }) { Text("Reset") }
+                Button(onClick = {
+                    vm.toggleRecording()
+                    val timestamp = Clock.System.now().toString().replace(":", "-")
+                    saveLauncher.launch("lidar-session-$timestamp.json")
+                }) { Text("Save") }
+            }
+            if (showLogs) {
+                LogView(logs, modifier = Modifier.height(160.dp))
+            }
         }
-        if (showLogs) {
-            LogView(logs, modifier = Modifier.height(160.dp))
+    } else {
+        Row(modifier = Modifier.fillMaxSize()) {
+            LidarPlot(
+                measurements,
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+                    .background(Color.White)
+                    .border(2.dp, color = Color.Blue),
+                rotation = rotation,
+                autoScale = autoScale,
+                confidenceThreshold = confidence.toInt(),
+            )
+            Column(modifier = Modifier
+                .fillMaxHeight()
+                .weight(1f)) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = onOpenSettings) { Text("Settings") }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { vm.toggleRecording() }) {
+                        Text(if (recording) "Stop Recording" else "Start Recording")
+                    }
+                    Button(onClick = { vm.clearSession() }) { Text("Reset") }
+                    Button(onClick = {
+                        vm.toggleRecording()
+                        val timestamp = Clock.System.now().toString().replace(":", "-")
+                        saveLauncher.launch("lidar-session-$timestamp.json")
+                    }) { Text("Save") }
+                }
+                if (showLogs) {
+                    LogView(logs, modifier = Modifier.height(160.dp))
+                }
+            }
         }
     }
 }
