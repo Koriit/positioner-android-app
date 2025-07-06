@@ -25,7 +25,11 @@ object UsbPermissionHelper {
                     }
                 }
             }
-            context.registerReceiver(receiver, IntentFilter(ACTION_USB_PERMISSION))
+            context.registerReceiver(
+                receiver,
+                IntentFilter(ACTION_USB_PERMISSION),
+                Context.RECEIVER_NOT_EXPORTED
+            )
             manager.requestPermission(device, intent)
         }
     }
