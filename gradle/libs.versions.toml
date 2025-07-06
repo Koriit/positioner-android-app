@@ -8,7 +8,7 @@ kotlin = "2.1.0"
 activity-compose = "1.9.0"
 material = "1.12.0"
 coroutines = "1.8.1"
-usbserial = "3.5.1"
+usbserial = "3.9.0"
 serialization = "1.8.1"
 datetime = "0.6.2"
 lifecycle = "2.7.0"
@@ -16,6 +16,7 @@ lifecycle = "2.7.0"
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics-ktx" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
 activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit-jupiter" }
@@ -33,3 +34,4 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 google-services = { id = "com.google.gms.google-services", version.ref = "google-services" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics" , version = "2.9.9" }
