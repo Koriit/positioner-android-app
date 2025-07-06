@@ -22,7 +22,9 @@ import kotlinx.serialization.json.Json
 class LidarViewModel(private val context: Context) : ViewModel() {
     val flushIntervalMs = MutableStateFlow(100f)
     val rotation = MutableStateFlow(0)
-    val autoScale = MutableStateFlow(false)
+    val autoScale = MutableStateFlow(true)
+    val showLogs = MutableStateFlow(false)
+    val bufferSize = MutableStateFlow(480)
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(200f)
 
@@ -55,7 +57,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             try {
                 source.measurements().flowOn(Dispatchers.IO).collect { m ->
                     if (m.confidence >= confidenceThreshold.value.toInt()) {
-                        if (buffer.size >= 480) buffer.removeFirst()
+                        if (buffer.size >= bufferSize.value) buffer.removeFirst()
                         buffer.addLast(m)
                         if (recording.value) sessionData.add(m)
                     }
