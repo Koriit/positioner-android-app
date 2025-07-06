@@ -35,6 +35,9 @@ This project uses a small set of libraries. The table below explains why each de
 |Kotlinx DateTime
 |Represents timestamps using `Instant` with ISO-8601 serialization.
 
+|AndroidX Lifecycle ViewModel
+|Holds UI state and runs the lidar collection loop without leaking the Activity.
+
 |JUnit Jupiter
 |Runs unit tests written with JUnit 5.
 

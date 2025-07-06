@@ -1,10 +1,9 @@
 package com.koriit.positioner.android.lidar
 
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.hardware.usb.UsbManager
 import com.koriit.positioner.android.logging.AppLog
+import com.koriit.positioner.android.usb.UsbPermissionHelper
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.Dispatchers
@@ -34,7 +33,7 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
          * Open the first available USB serial port (CP210x) with default settings.
          * Returns null if no device is available or permission is missing.
          */
-        fun openDefault(context: Context): LidarReader? {
+        suspend fun openDefault(context: Context): LidarReader? {
             val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
             AppLog.d(TAG, "Searching for USB serial drivers")
             val drivers = UsbSerialProber.getDefaultProber().findAllDrivers(manager)
@@ -47,14 +46,13 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
             var connection = manager.openDevice(driver.device)
             if (connection == null) {
                 AppLog.d(TAG, "Requesting permission for device")
-                val pi = PendingIntent.getBroadcast(
-                    context,
-                    0,
-                    Intent("com.koriit.positioner.android.USB_PERMISSION"),
-                    PendingIntent.FLAG_IMMUTABLE
-                )
-                manager.requestPermission(driver.device, pi)
-                return null
+                val granted = UsbPermissionHelper.requestPermission(context, manager, driver.device)
+                if (!granted) {
+                    AppLog.d(TAG, "Permission denied for device")
+                    return null
+                }
+                connection = manager.openDevice(driver.device)
+                if (connection == null) return null
             }
             val port: UsbSerialPort = driver.ports[0]
             AppLog.d(TAG, "Opening serial connection")

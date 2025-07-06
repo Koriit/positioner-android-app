@@ -11,6 +11,7 @@ coroutines = "1.8.1"
 usbserial = "3.5.1"
 serialization = "1.8.1"
 datetime = "0.6.2"
+lifecycle = "2.7.0"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
@@ -23,6 +24,8 @@ coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", vers
 usbserial = { module = "com.github.mik3y:usb-serial-for-android", version.ref = "usbserial" }
 serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
+lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
+lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle" }
