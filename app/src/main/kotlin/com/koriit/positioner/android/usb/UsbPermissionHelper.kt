@@ -33,4 +33,9 @@ object UsbPermissionHelper {
             manager.requestPermission(device, intent)
         }
     }
+
+    fun requestPermissionAsync(context: Context, manager: UsbManager, device: UsbDevice) {
+        val intent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION), PendingIntent.FLAG_IMMUTABLE)
+        manager.requestPermission(device, intent)
+    }
 }

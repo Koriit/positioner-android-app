@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -28,7 +29,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val showLogs = MutableStateFlow(false)
     val bufferSize = MutableStateFlow(480)
     val recording = MutableStateFlow(false)
-    val confidenceThreshold = MutableStateFlow(200f)
+    val confidenceThreshold = MutableStateFlow(220f)
+    val gradientMin = MutableStateFlow(100f)
+    val measurementsPerSecond = MutableStateFlow(0)
 
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
@@ -52,26 +55,45 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     private fun startReading() {
         viewModelScope.launch {
-            val realReader = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
-            val source: LidarDataSource = realReader ?: FakeLidarReader()
             val buffer = ArrayDeque<LidarMeasurement>()
             var lastFlush = System.currentTimeMillis()
-            try {
-                source.measurements().flowOn(Dispatchers.IO).collect { m ->
-                    if (m.confidence >= confidenceThreshold.value.toInt()) {
-                        if (buffer.size >= bufferSize.value) buffer.removeFirst()
-                        buffer.addLast(m)
-                        if (recording.value) sessionData.add(m)
-                    }
-                    val now = System.currentTimeMillis()
-                    if (now - lastFlush >= flushIntervalMs.value.toLong()) {
-                        lastFlush = now
-                        _measurements.value = buffer.toList()
-                    }
+            var lastSecond = System.currentTimeMillis()
+            var count = 0
+            var currentBufferSize = bufferSize.value
+            while (true) {
+                val source = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
+                if (source == null) {
+                    delay(1000)
+                    continue
                 }
-            } catch (e: Exception) {
-                AppLog.d("LidarViewModel", "Measurement loop failed", e)
-                Firebase.crashlytics.recordException(e)
+                try {
+                    source.measurements().flowOn(Dispatchers.IO).collect { m ->
+                        if (bufferSize.value != currentBufferSize) {
+                            currentBufferSize = bufferSize.value
+                            buffer.clear()
+                        }
+                        if (m.confidence >= confidenceThreshold.value.toInt()) {
+                            if (buffer.size >= currentBufferSize) buffer.removeFirst()
+                            buffer.addLast(m)
+                            if (recording.value) sessionData.add(m)
+                        }
+                        count++
+                        val now = System.currentTimeMillis()
+                        if (now - lastFlush >= flushIntervalMs.value.toLong()) {
+                            lastFlush = now
+                            _measurements.value = buffer.toList()
+                        }
+                        if (now - lastSecond >= 1000) {
+                            measurementsPerSecond.value = count
+                            count = 0
+                            lastSecond = now
+                        }
+                    }
+                } catch (e: Exception) {
+                    AppLog.d("LidarViewModel", "Measurement loop failed", e)
+                    Firebase.crashlytics.recordException(e)
+                    delay(1000)
+                }
             }
         }
     }

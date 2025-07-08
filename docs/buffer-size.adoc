@@ -1,4 +1,4 @@
 == Measurement buffer size
 
-The settings screen includes a slider that controls how many lidar data points are kept in memory and displayed on the plot.
+The settings panel includes a slider that controls how many lidar data points are kept in memory and displayed on the plot.
 Increasing the value shows more history but uses more memory. The default is 480 points.

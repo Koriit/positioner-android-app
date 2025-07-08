@@ -35,25 +35,20 @@ import com.koriit.positioner.android.logging.AppLog
 import com.koriit.positioner.android.logging.LogView
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 import com.koriit.positioner.android.viewmodel.LidarViewModelFactory
+import com.koriit.positioner.android.ui.SettingsPanel
 import kotlinx.datetime.Clock
-
-private enum class Screen { LIDAR, SETTINGS }
 
 @Composable
 fun PositionerApp() {
     MaterialTheme {
         val context = LocalContext.current
         val vm: LidarViewModel = viewModel(factory = LidarViewModelFactory(context))
-        var screen by remember { mutableStateOf(Screen.LIDAR) }
-        when (screen) {
-            Screen.LIDAR -> LidarScreen(vm) { screen = Screen.SETTINGS }
-            Screen.SETTINGS -> SettingsScreen(vm) { screen = Screen.LIDAR }
-        }
+        LidarScreen(vm)
     }
 }
 
 @Composable
-fun LidarScreen(vm: LidarViewModel, onOpenSettings: () -> Unit) {
+fun LidarScreen(vm: LidarViewModel) {
     val measurements by vm.measurements.collectAsState()
     val logs by AppLog.logs.collectAsState()
     val rotation by vm.rotation.collectAsState()
@@ -67,12 +62,20 @@ fun LidarScreen(vm: LidarViewModel, onOpenSettings: () -> Unit) {
         uri?.let { vm.saveSession(it, context) }
     }
 
+    var showSettings by remember { mutableStateOf(false) }
+
+    val gradientMin by vm.gradientMin.collectAsState()
+    val mps by vm.measurementsPerSecond.collectAsState()
+
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
     if (isPortrait) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = onOpenSettings) { Text("Settings") }
+                Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
+            }
+            if (showSettings) {
+                SettingsPanel(vm)
             }
             LidarPlot(
                 measurements,
@@ -84,7 +87,9 @@ fun LidarScreen(vm: LidarViewModel, onOpenSettings: () -> Unit) {
                 rotation = rotation,
                 autoScale = autoScale,
                 confidenceThreshold = confidence.toInt(),
+                gradientMin = gradientMin.toInt(),
             )
+            Text("Measurements/s: $mps")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
             }
@@ -115,12 +120,16 @@ fun LidarScreen(vm: LidarViewModel, onOpenSettings: () -> Unit) {
                 rotation = rotation,
                 autoScale = autoScale,
                 confidenceThreshold = confidence.toInt(),
+                gradientMin = gradientMin.toInt(),
             )
             Column(modifier = Modifier
                 .fillMaxHeight()
                 .weight(1f)) {
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Button(onClick = onOpenSettings) { Text("Settings") }
+                    Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
+                }
+                if (showSettings) {
+                    SettingsPanel(vm)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
@@ -136,6 +145,7 @@ fun LidarScreen(vm: LidarViewModel, onOpenSettings: () -> Unit) {
                         saveLauncher.launch("lidar-session-$timestamp.json")
                     }) { Text("Save") }
                 }
+                Text("Measurements/s: $mps")
                 if (showLogs) {
                     LogView(logs, modifier = Modifier.height(160.dp))
                 }
