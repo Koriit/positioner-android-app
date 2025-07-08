@@ -1,5 +1,5 @@
 == Plot update interval
 
-Use the slider in the settings screen to control how often new lidar
+Use the slider in the settings panel to control how often new lidar
 measurements are flushed to the UI. The value represents the minimum
 number of milliseconds between updates. By default the app uses 100ms.

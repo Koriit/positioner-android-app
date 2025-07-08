@@ -24,6 +24,7 @@ fun LidarPlot(
     rotation: Int = 0,
     autoScale: Boolean = false,
     confidenceThreshold: Int = 100,
+    gradientMin: Int = 100,
 ) {
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
@@ -69,7 +70,7 @@ fun LidarPlot(
 
                 // Create gradient color based on confidence (0-255)
                 // 0 = red (low confidence), 255 = green (high confidence)
-                val normalizedConfidence = confidence / 255f
+                val normalizedConfidence = ((confidence - gradientMin) / (255f - gradientMin)).coerceIn(0f, 1f)
                 val color = Color(
                     red = 1f - normalizedConfidence,
                     green = normalizedConfidence,

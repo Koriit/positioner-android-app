@@ -43,17 +43,12 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
                 AppLog.d(TAG, "No USB serial device available")
                 return null
             }
-            var connection = manager.openDevice(driver.device)
-            if (connection == null) {
+            if (!manager.hasPermission(driver.device)) {
                 AppLog.d(TAG, "Requesting permission for device")
-                val granted = UsbPermissionHelper.requestPermission(context, manager, driver.device)
-                if (!granted) {
-                    AppLog.d(TAG, "Permission denied for device")
-                    return null
-                }
-                connection = manager.openDevice(driver.device)
-                if (connection == null) return null
+                UsbPermissionHelper.requestPermissionAsync(context, manager, driver.device)
+                return null
             }
+            val connection = manager.openDevice(driver.device) ?: return null
             val port: UsbSerialPort = driver.ports[0]
             AppLog.d(TAG, "Opening serial connection")
             port.open(connection)
