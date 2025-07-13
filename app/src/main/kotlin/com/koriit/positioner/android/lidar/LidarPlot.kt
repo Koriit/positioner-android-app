@@ -141,7 +141,7 @@ private fun DrawScope.drawConfidenceIndicators(
             "Min: $minConf",
             textPadding + 25.dp.toPx(),
             textPadding + 15.dp.toPx(),
-            paint
+            android.graphics.Paint(paint).apply { color = minColor }
         )
 
         // Max confidence indicator (top-right)
@@ -173,7 +173,7 @@ private fun DrawScope.drawConfidenceIndicators(
             "Max: $maxConf",
             size.width - textPadding - indicatorWidth + 25.dp.toPx(),
             textPadding + 15.dp.toPx(),
-            paint
+            android.graphics.Paint(paint).apply { color = maxColor }
         )
 
         // Average confidence indicator (bottom-left)
