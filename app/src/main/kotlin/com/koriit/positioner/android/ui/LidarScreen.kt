@@ -69,6 +69,7 @@ fun LidarScreen(vm: LidarViewModel) {
 
     val gradientMin by vm.gradientMin.collectAsState()
     val mps by vm.measurementsPerSecond.collectAsState()
+    val rps by vm.rotationsPerSecond.collectAsState()
 
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
@@ -96,10 +97,17 @@ fun LidarScreen(vm: LidarViewModel) {
                     gradientMin = gradientMin.toInt(),
                 )
                 if (!usbConnected) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Text("waiting for lidar measurements...")
+                    }
                 }
             }
             Text("Measurements/s: $mps")
+            Text("Rotations/s: ${"%.2f".format(rps)}")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
             }
@@ -136,7 +144,13 @@ fun LidarScreen(vm: LidarViewModel) {
                     gradientMin = gradientMin.toInt(),
                 )
                 if (!usbConnected) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Text("waiting for lidar measurements...")
+                    }
                 }
             }
             Column(modifier = Modifier
@@ -163,6 +177,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     }) { Text("Save") }
                 }
                 Text("Measurements/s: $mps")
+                Text("Rotations/s: ${"%.2f".format(rps)}")
                 if (showLogs) {
                     LogView(logs, modifier = Modifier.height(160.dp))
                 }

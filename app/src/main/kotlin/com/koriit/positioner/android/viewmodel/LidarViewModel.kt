@@ -33,6 +33,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val gradientMin = MutableStateFlow(200f)
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
+    val rotationsPerSecond = MutableStateFlow(0f)
 
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
@@ -60,6 +61,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             var lastFlush = System.currentTimeMillis()
             var lastSecond = System.currentTimeMillis()
             var count = 0
+            var angleAccum = 0f
+            var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
             while (true) {
                 val source = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
@@ -81,6 +84,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                             buffer.addLast(m)
                             if (recording.value) sessionData.add(m)
                         }
+                        lastAngle?.let { prev ->
+                            var diff = m.angle - prev
+                            if (diff < 0f) diff += 360f
+                            angleAccum += diff
+                        }
+                        lastAngle = m.angle
                         count++
                         val now = System.currentTimeMillis()
                         if (now - lastFlush >= flushIntervalMs.value.toLong()) {
@@ -89,6 +98,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         }
                         if (now - lastSecond >= 1000) {
                             measurementsPerSecond.value = count
+                            rotationsPerSecond.value = angleAccum / 360f
+                            angleAccum = 0f
                             count = 0
                             lastSecond = now
                         }
