@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import android.content.res.Configuration
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -56,6 +58,7 @@ fun LidarScreen(vm: LidarViewModel) {
     val showLogs by vm.showLogs.collectAsState()
     val recording by vm.recording.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
+    val usbConnected by vm.usbConnected.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -77,18 +80,25 @@ fun LidarScreen(vm: LidarViewModel) {
             if (showSettings) {
                 SettingsPanel(vm)
             }
-            LidarPlot(
-                measurements,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .background(Color.White)
-                    .border(2.dp, color = Color.Blue),
-                rotation = rotation,
-                autoScale = autoScale,
-                confidenceThreshold = confidence.toInt(),
-                gradientMin = gradientMin.toInt(),
-            )
+                    .border(2.dp, color = Color.Blue)
+            ) {
+                LidarPlot(
+                    measurements,
+                    modifier = Modifier.fillMaxSize(),
+                    rotation = rotation,
+                    autoScale = autoScale,
+                    confidenceThreshold = confidence.toInt(),
+                    gradientMin = gradientMin.toInt(),
+                )
+                if (!usbConnected) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
             Text("Measurements/s: $mps")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
@@ -110,18 +120,25 @@ fun LidarScreen(vm: LidarViewModel) {
         }
     } else {
         Row(modifier = Modifier.fillMaxSize()) {
-            LidarPlot(
-                measurements,
+            Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .weight(1f)
                     .background(Color.White)
-                    .border(2.dp, color = Color.Blue),
-                rotation = rotation,
-                autoScale = autoScale,
-                confidenceThreshold = confidence.toInt(),
-                gradientMin = gradientMin.toInt(),
-            )
+                    .border(2.dp, color = Color.Blue)
+            ) {
+                LidarPlot(
+                    measurements,
+                    modifier = Modifier.fillMaxSize(),
+                    rotation = rotation,
+                    autoScale = autoScale,
+                    confidenceThreshold = confidence.toInt(),
+                    gradientMin = gradientMin.toInt(),
+                )
+                if (!usbConnected) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
+            }
             Column(modifier = Modifier
                 .fillMaxHeight()
                 .weight(1f)) {
