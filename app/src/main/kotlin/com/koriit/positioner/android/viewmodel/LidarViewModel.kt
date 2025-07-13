@@ -23,14 +23,15 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class LidarViewModel(private val context: Context) : ViewModel() {
-    val flushIntervalMs = MutableStateFlow(100f)
+    val flushIntervalMs = MutableStateFlow(50f)
     val rotation = MutableStateFlow(0)
     val autoScale = MutableStateFlow(true)
     val showLogs = MutableStateFlow(false)
     val bufferSize = MutableStateFlow(480)
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(220f)
-    val gradientMin = MutableStateFlow(100f)
+    val gradientMin = MutableStateFlow(200f)
+    val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
 
     private val sessionData = mutableListOf<LidarMeasurement>()
@@ -63,9 +64,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             while (true) {
                 val source = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
                 if (source == null) {
+                    usbConnected.value = false
+                    _measurements.value = emptyList()
                     delay(1000)
                     continue
                 }
+                usbConnected.value = true
                 try {
                     source.measurements().flowOn(Dispatchers.IO).collect { m ->
                         if (bufferSize.value != currentBufferSize) {
@@ -90,6 +94,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         }
                     }
                 } catch (e: Exception) {
+                    usbConnected.value = false
+                    _measurements.value = emptyList()
                     AppLog.d("LidarViewModel", "Measurement loop failed", e)
                     Firebase.crashlytics.recordException(e)
                     delay(1000)

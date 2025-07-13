@@ -20,6 +20,7 @@ fun SettingsPanel(vm: LidarViewModel) {
     val bufferSize by vm.bufferSize.collectAsState()
     val flushInterval by vm.flushIntervalMs.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
+    val gradientMin by vm.gradientMin.collectAsState()
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -37,9 +38,9 @@ fun SettingsPanel(vm: LidarViewModel) {
             valueRange = 50f..1000f,
             modifier = Modifier.fillMaxWidth(),
         )
-        Text("Color gradient min: ${vm.gradientMin.value.toInt()}")
+        Text("Color gradient min: ${gradientMin.toInt()}")
         Slider(
-            value = vm.gradientMin.value,
+            value = gradientMin,
             onValueChange = { vm.gradientMin.value = it },
             valueRange = 0f..255f,
             modifier = Modifier.fillMaxWidth(),
