@@ -2,3 +2,4 @@
 
 The settings panel offers a slider that filters out lidar measurements below the selected confidence value.
 Higher values discard more noise but may hide weaker reflections. The default is 220.
+The threshold is applied when rendering so recorded sessions remain unaffected.

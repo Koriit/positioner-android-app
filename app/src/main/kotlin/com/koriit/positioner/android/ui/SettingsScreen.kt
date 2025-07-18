@@ -21,6 +21,8 @@ fun SettingsPanel(vm: LidarViewModel) {
     val flushInterval by vm.flushIntervalMs.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
     val gradientMin by vm.gradientMin.collectAsState()
+    val minDistance by vm.minDistance.collectAsState()
+    val isolationDistance by vm.isolationDistance.collectAsState()
 
     Column {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -50,6 +52,20 @@ fun SettingsPanel(vm: LidarViewModel) {
             value = confidence,
             onValueChange = { vm.confidenceThreshold.value = it },
             valueRange = 0f..255f,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text("Min distance: ${"%.2f".format(minDistance)} m")
+        Slider(
+            value = minDistance,
+            onValueChange = { vm.minDistance.value = it },
+            valueRange = 0f..2f,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text("Isolation distance: ${"%.2f".format(isolationDistance)} m")
+        Slider(
+            value = isolationDistance,
+            onValueChange = { vm.isolationDistance.value = it },
+            valueRange = 0f..5f,
             modifier = Modifier.fillMaxWidth(),
         )
         Text("Buffer size: $bufferSize")

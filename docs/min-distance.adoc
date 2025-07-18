@@ -1,0 +1,5 @@
+== Minimum distance filter
+
+Use this slider in the settings panel to discard points that are too close to the sensor.
+The value represents metres. By default points closer than 0.5m are removed.
+Filtering happens when the plot is drawn so recordings always contain the raw measurements.

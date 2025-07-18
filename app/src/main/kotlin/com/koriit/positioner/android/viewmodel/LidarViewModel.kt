@@ -9,6 +9,7 @@ import com.koriit.positioner.android.lidar.FakeLidarReader
 import com.koriit.positioner.android.lidar.LidarDataSource
 import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
+import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.logging.AppLog
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.crashlytics.ktx.crashlytics
@@ -31,6 +32,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(220f)
     val gradientMin = MutableStateFlow(200f)
+    val minDistance = MutableStateFlow(0.5f) // metres
+    val isolationDistance = MutableStateFlow(1f) // metres
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -79,11 +82,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                             currentBufferSize = bufferSize.value
                             buffer.clear()
                         }
-                        if (m.confidence >= confidenceThreshold.value.toInt()) {
-                            if (buffer.size >= currentBufferSize) buffer.removeFirst()
-                            buffer.addLast(m)
-                            if (recording.value) sessionData.add(m)
-                        }
+                        if (buffer.size >= currentBufferSize) buffer.removeFirst()
+                        buffer.addLast(m)
+                        if (recording.value) sessionData.add(m)
                         lastAngle?.let { prev ->
                             var diff = m.angle - prev
                             if (diff < 0f) diff += 360f
@@ -94,7 +95,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         val now = System.currentTimeMillis()
                         if (now - lastFlush >= flushIntervalMs.value.toLong()) {
                             lastFlush = now
-                            _measurements.value = buffer.toList()
+                            _measurements.value = MeasurementFilter.apply(
+                                buffer.toList(),
+                                confidenceThreshold.value.toInt(),
+                                minDistance.value,
+                                isolationDistance.value,
+                            )
                         }
                         if (now - lastSecond >= 1000) {
                             measurementsPerSecond.value = count
@@ -114,6 +120,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             }
         }
     }
+
 }
 
 class LidarViewModelFactory(private val context: Context) : ViewModelProvider.Factory {
