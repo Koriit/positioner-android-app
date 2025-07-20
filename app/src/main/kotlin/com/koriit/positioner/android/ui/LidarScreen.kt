@@ -38,6 +38,7 @@ import com.koriit.positioner.android.logging.LogView
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 import com.koriit.positioner.android.viewmodel.LidarViewModelFactory
 import com.koriit.positioner.android.ui.SettingsPanel
+import com.koriit.positioner.android.ui.ReplayControls
 import kotlinx.datetime.Clock
 
 @Composable
@@ -64,6 +65,9 @@ fun LidarScreen(vm: LidarViewModel) {
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         uri?.let { vm.saveSession(it, context) }
     }
+    val loadLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { vm.loadRecording(it, context) }
+    }
 
     var showSettings by remember { mutableStateOf(false) }
 
@@ -75,6 +79,7 @@ fun LidarScreen(vm: LidarViewModel) {
 
     if (isPortrait) {
         Column(modifier = Modifier.fillMaxSize()) {
+            val replaying by vm.replayMode.collectAsState()
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
             }
@@ -112,15 +117,33 @@ fun LidarScreen(vm: LidarViewModel) {
                 Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
-                Button(onClick = { vm.toggleRecording() }) {
+                Button(
+                    onClick = { vm.toggleRecording() },
+                    enabled = !replaying
+                ) {
                     Text(if (recording) "Stop Recording" else "Start Recording")
                 }
-                Button(onClick = { vm.clearSession() }) { Text("Reset") }
-                Button(onClick = {
-                    vm.toggleRecording()
-                    val timestamp = Clock.System.now().toString().replace(":", "-")
-                    saveLauncher.launch("lidar-session-$timestamp.json")
-                }) { Text("Save") }
+                Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
+                Button(
+                    onClick = {
+                        vm.toggleRecording()
+                        val timestamp = Clock.System.now().toString().replace(":", "-")
+                        saveLauncher.launch("lidar-session-$timestamp.json")
+                    },
+                    enabled = !replaying
+                ) { Text("Save") }
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { loadLauncher.launch(arrayOf("application/json")) },
+                    enabled = !recording && !replaying
+                ) { Text("Load") }
+                if (replaying) {
+                    Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
+                }
+            }
+            if (replaying) {
+                ReplayControls(vm)
             }
             if (showLogs) {
                 LogView(logs, modifier = Modifier.height(160.dp))
@@ -156,6 +179,7 @@ fun LidarScreen(vm: LidarViewModel) {
             Column(modifier = Modifier
                 .fillMaxHeight()
                 .weight(1f)) {
+                val replaying by vm.replayMode.collectAsState()
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
                 }
@@ -166,15 +190,33 @@ fun LidarScreen(vm: LidarViewModel) {
                     Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    Button(onClick = { vm.toggleRecording() }) {
+                    Button(
+                        onClick = { vm.toggleRecording() },
+                        enabled = !replaying
+                    ) {
                         Text(if (recording) "Stop Recording" else "Start Recording")
                     }
-                    Button(onClick = { vm.clearSession() }) { Text("Reset") }
-                    Button(onClick = {
-                        vm.toggleRecording()
-                        val timestamp = Clock.System.now().toString().replace(":", "-")
-                        saveLauncher.launch("lidar-session-$timestamp.json")
-                    }) { Text("Save") }
+                    Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
+                    Button(
+                        onClick = {
+                            vm.toggleRecording()
+                            val timestamp = Clock.System.now().toString().replace(":", "-")
+                            saveLauncher.launch("lidar-session-$timestamp.json")
+                        },
+                        enabled = !replaying
+                    ) { Text("Save") }
+                }
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { loadLauncher.launch(arrayOf("application/json")) },
+                        enabled = !recording && !replaying
+                    ) { Text("Load") }
+                    if (replaying) {
+                        Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
+                    }
+                }
+                if (replaying) {
+                    ReplayControls(vm)
                 }
                 Text("Measurements/s: $mps")
                 Text("Rotations/s: ${"%.2f".format(rps)}")
