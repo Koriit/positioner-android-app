@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import kotlinx.datetime.Instant
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -38,17 +41,71 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
 
+    val replayMode = MutableStateFlow(false)
+    val playing = MutableStateFlow(false)
+    val replaySpeed = MutableStateFlow(1f)
+    val replayPositionMs = MutableStateFlow(0L)
+    val replayDurationMs = MutableStateFlow(0L)
+
+    private var replayData: List<LidarMeasurement> = emptyList()
+    private var readJob: Job? = null
+
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
 
     init {
-        startReading()
+        startLiveReading()
     }
 
     fun rotate90() { rotation.value += 90 }
-    fun toggleRecording() { recording.value = !recording.value }
+    fun toggleRecording() {
+        if (replayMode.value) return
+        recording.value = !recording.value
+    }
     fun clearSession() { sessionData.clear() }
+
+    fun loadRecording(uri: Uri, context: Context) {
+        if (recording.value || replayMode.value) return
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            val json = input.bufferedReader().readText()
+            replayData = Json.decodeFromString(json)
+            if (replayData.isNotEmpty()) {
+                replayDurationMs.value =
+                    replayData.last().timestamp.toEpochMilliseconds() -
+                        replayData.first().timestamp.toEpochMilliseconds()
+                replayPositionMs.value = 0
+                replaySpeed.value = 1f
+                playing.value = true
+                replayMode.value = true
+                startReplay()
+            }
+        }
+    }
+
+    fun exitReplay() {
+        replayMode.value = false
+        playing.value = false
+        replayData = emptyList()
+        replayPositionMs.value = 0
+        _measurements.value = emptyList()
+        readJob?.cancel()
+        startLiveReading()
+    }
+
+    fun togglePlay() { playing.value = !playing.value }
+
+    fun seekBy(ms: Long) { seekTo(replayPositionMs.value + ms) }
+
+    fun changeSpeed(factor: Float) {
+        replaySpeed.value = (replaySpeed.value * factor).coerceIn(0.25f, 4f)
+        if (replayMode.value) startReplay()
+    }
+
+    fun seekTo(ms: Long) {
+        replayPositionMs.value = ms.coerceIn(0L, replayDurationMs.value)
+        if (replayMode.value) startReplay()
+    }
 
     fun saveSession(uri: Uri, context: Context) {
         context.contentResolver.openOutputStream(uri)?.use { out ->
@@ -58,8 +115,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    private fun startReading() {
-        viewModelScope.launch {
+    private fun startLiveReading() {
+        readJob?.cancel()
+        readJob = viewModelScope.launch {
             val buffer = ArrayDeque<LidarMeasurement>()
             var lastFlush = System.currentTimeMillis()
             var lastSecond = System.currentTimeMillis()
@@ -117,6 +175,73 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     Firebase.crashlytics.recordException(e)
                     delay(1000)
                 }
+            }
+        }
+    }
+
+    private fun findIndexForPosition(ms: Long): Int {
+        if (replayData.isEmpty()) return 0
+        val start = replayData.first().timestamp.toEpochMilliseconds()
+        val target = start + ms
+        val idx = replayData.binarySearch { it.timestamp.toEpochMilliseconds().compareTo(target) }
+        return if (idx >= 0) idx else -idx - 1
+    }
+
+    private fun startReplay() {
+        readJob?.cancel()
+        readJob = viewModelScope.launch {
+            val buffer = ArrayDeque<LidarMeasurement>()
+            var lastFlush = System.currentTimeMillis()
+            var lastSecond = System.currentTimeMillis()
+            var count = 0
+            var angleAccum = 0f
+            var lastAngle: Float? = null
+            var currentBufferSize = bufferSize.value
+            var index = findIndexForPosition(replayPositionMs.value)
+            while (replayMode.value && index < replayData.size) {
+                if (!playing.value) {
+                    delay(50)
+                    continue
+                }
+                if (bufferSize.value != currentBufferSize) {
+                    currentBufferSize = bufferSize.value
+                    buffer.clear()
+                }
+                val m = replayData[index]
+                if (buffer.size >= currentBufferSize) buffer.removeFirst()
+                buffer.addLast(m)
+                lastAngle?.let { prev ->
+                    var diff = m.angle - prev
+                    if (diff < 0f) diff += 360f
+                    angleAccum += diff
+                }
+                lastAngle = m.angle
+                count++
+                val now = System.currentTimeMillis()
+                if (now - lastFlush >= flushIntervalMs.value.toLong()) {
+                    lastFlush = now
+                    _measurements.value = MeasurementFilter.apply(
+                        buffer.toList(),
+                        confidenceThreshold.value.toInt(),
+                        minDistance.value,
+                        isolationDistance.value,
+                    )
+                }
+                if (now - lastSecond >= 1000) {
+                    measurementsPerSecond.value = count
+                    rotationsPerSecond.value = angleAccum / 360f
+                    angleAccum = 0f
+                    count = 0
+                    lastSecond = now
+                }
+
+                val startMs = replayData.first().timestamp.toEpochMilliseconds()
+                replayPositionMs.value = m.timestamp.toEpochMilliseconds() - startMs
+                index++
+                if (index >= replayData.size) break
+                val nextDiff = replayData[index].timestamp.toEpochMilliseconds() - m.timestamp.toEpochMilliseconds()
+                val delayMs = (nextDiff / replaySpeed.value).toLong()
+                delay(delayMs)
             }
         }
     }
