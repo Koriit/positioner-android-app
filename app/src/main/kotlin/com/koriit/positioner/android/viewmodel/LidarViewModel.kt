@@ -27,16 +27,25 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class LidarViewModel(private val context: Context) : ViewModel() {
-    val flushIntervalMs = MutableStateFlow(50f)
+    companion object {
+        const val DEFAULT_FLUSH_INTERVAL_MS = 50f
+        const val DEFAULT_BUFFER_SIZE = 480
+        const val DEFAULT_CONFIDENCE_THRESHOLD = 220f
+        const val DEFAULT_GRADIENT_MIN = 200f
+        const val DEFAULT_MIN_DISTANCE = 0.5f
+        const val DEFAULT_ISOLATION_DISTANCE = 1f
+    }
+
+    val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
     val rotation = MutableStateFlow(0)
     val autoScale = MutableStateFlow(true)
     val showLogs = MutableStateFlow(false)
-    val bufferSize = MutableStateFlow(480)
+    val bufferSize = MutableStateFlow(DEFAULT_BUFFER_SIZE)
     val recording = MutableStateFlow(false)
-    val confidenceThreshold = MutableStateFlow(220f)
-    val gradientMin = MutableStateFlow(200f)
-    val minDistance = MutableStateFlow(0.5f) // metres
-    val isolationDistance = MutableStateFlow(1f) // metres
+    val confidenceThreshold = MutableStateFlow(DEFAULT_CONFIDENCE_THRESHOLD)
+    val gradientMin = MutableStateFlow(DEFAULT_GRADIENT_MIN)
+    val minDistance = MutableStateFlow(DEFAULT_MIN_DISTANCE) // metres
+    val isolationDistance = MutableStateFlow(DEFAULT_ISOLATION_DISTANCE) // metres
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -64,6 +73,13 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         recording.value = !recording.value
     }
     fun clearSession() { sessionData.clear() }
+
+    fun resetFlushInterval() { flushIntervalMs.value = DEFAULT_FLUSH_INTERVAL_MS }
+    fun resetGradientMin() { gradientMin.value = DEFAULT_GRADIENT_MIN }
+    fun resetConfidenceThreshold() { confidenceThreshold.value = DEFAULT_CONFIDENCE_THRESHOLD }
+    fun resetMinDistance() { minDistance.value = DEFAULT_MIN_DISTANCE }
+    fun resetIsolationDistance() { isolationDistance.value = DEFAULT_ISOLATION_DISTANCE }
+    fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
 
     fun loadRecording(uri: Uri, context: Context) {
         if (recording.value || replayMode.value) return
@@ -102,9 +118,16 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         if (replayMode.value) startReplay()
     }
 
+    /**
+     * Seek to the requested timestamp within the loaded replay.
+     *
+     * Unlike the previous implementation this does not restart the replay
+     * coroutine on every value change. The running replay loop observes
+     * [replayPositionMs] and jumps to the requested frame when it changes so
+     * dragging the UI slider results in immediate feedback.
+     */
     fun seekTo(ms: Long) {
         replayPositionMs.value = ms.coerceIn(0L, replayDurationMs.value)
-        if (replayMode.value) startReplay()
     }
 
     fun saveSession(uri: Uri, context: Context) {
@@ -197,11 +220,18 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             var angleAccum = 0f
             var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
+            val firstMs = replayData.first().timestamp.toEpochMilliseconds()
             var index = findIndexForPosition(replayPositionMs.value)
             while (replayMode.value && index < replayData.size) {
                 if (!playing.value) {
                     delay(50)
                     continue
+                }
+                val desired = findIndexForPosition(replayPositionMs.value)
+                if (desired != index) {
+                    index = desired
+                    buffer.clear()
+                    lastAngle = null
                 }
                 if (bufferSize.value != currentBufferSize) {
                     currentBufferSize = bufferSize.value
@@ -235,8 +265,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     lastSecond = now
                 }
 
-                val startMs = replayData.first().timestamp.toEpochMilliseconds()
-                replayPositionMs.value = m.timestamp.toEpochMilliseconds() - startMs
+                replayPositionMs.value = m.timestamp.toEpochMilliseconds() - firstMs
                 index++
                 if (index >= replayData.size) break
                 val nextDiff = replayData[index].timestamp.toEpochMilliseconds() - m.timestamp.toEpochMilliseconds()

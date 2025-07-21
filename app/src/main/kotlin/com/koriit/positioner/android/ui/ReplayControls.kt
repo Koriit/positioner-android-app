@@ -2,9 +2,7 @@ package com.koriit.positioner.android.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Button
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -12,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import com.koriit.positioner.android.viewmodel.LidarViewModel
+import com.koriit.positioner.android.ui.SliderWithActions
 
 /**
  * Playback controls shown when a recording is loaded.
@@ -28,11 +27,11 @@ fun ReplayControls(vm: LidarViewModel) {
     val speed by vm.replaySpeed.collectAsState()
 
     Column {
-        Slider(
+        SliderWithActions(
             value = pos.toFloat(),
             onValueChange = { vm.seekTo(it.toLong()) },
             valueRange = 0f..duration.toFloat(),
-            modifier = Modifier.fillMaxWidth()
+            onReset = { vm.seekTo(0L) }
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
             Button(onClick = { vm.seekBy(-1000) }) { Text("-1s") }

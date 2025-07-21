@@ -22,6 +22,8 @@ This project uses a small set of libraries. The table below explains why each de
 |Enables Compose previews in Android Studio.
 |Compose UI Tooling (debug)
 |Used for on-device inspection and Compose layout debugging.
+|Compose Material Icons Extended
+|Provides vector icons used for UI buttons.
 
 |Kotlin Coroutines
 |Used by `LidarReader` to stream measurements asynchronously.

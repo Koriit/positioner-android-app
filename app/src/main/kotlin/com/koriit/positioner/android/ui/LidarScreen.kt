@@ -101,13 +101,13 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                 )
-                if (!usbConnected) {
+                if (!usbConnected && !replaying) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator()
-                        Text("waiting for lidar measurements...")
+                        Text("Waiting for live LiDAR measurements...")
                     }
                 }
             }
@@ -123,15 +123,17 @@ fun LidarScreen(vm: LidarViewModel) {
                 ) {
                     Text(if (recording) "Stop Recording" else "Start Recording")
                 }
-                Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
-                Button(
-                    onClick = {
-                        vm.toggleRecording()
-                        val timestamp = Clock.System.now().toString().replace(":", "-")
-                        saveLauncher.launch("lidar-session-$timestamp.json")
-                    },
-                    enabled = !replaying
-                ) { Text("Save") }
+                if (recording) {
+                    Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
+                    Button(
+                        onClick = {
+                            vm.toggleRecording()
+                            val timestamp = Clock.System.now().toString().replace(":", "-")
+                            saveLauncher.launch("lidar-session-$timestamp.json")
+                        },
+                        enabled = !replaying
+                    ) { Text("Save") }
+                }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
@@ -150,6 +152,7 @@ fun LidarScreen(vm: LidarViewModel) {
             }
         }
     } else {
+        val replaying by vm.replayMode.collectAsState()
         Row(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
@@ -166,20 +169,19 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                 )
-                if (!usbConnected) {
+                if (!usbConnected && !replaying) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         CircularProgressIndicator()
-                        Text("waiting for lidar measurements...")
+                        Text("Waiting for live LiDAR measurements...")
                     }
                 }
             }
             Column(modifier = Modifier
                 .fillMaxHeight()
                 .weight(1f)) {
-                val replaying by vm.replayMode.collectAsState()
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
                 }
@@ -196,15 +198,17 @@ fun LidarScreen(vm: LidarViewModel) {
                     ) {
                         Text(if (recording) "Stop Recording" else "Start Recording")
                     }
-                    Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
-                    Button(
-                        onClick = {
-                            vm.toggleRecording()
-                            val timestamp = Clock.System.now().toString().replace(":", "-")
-                            saveLauncher.launch("lidar-session-$timestamp.json")
-                        },
-                        enabled = !replaying
-                    ) { Text("Save") }
+                    if (recording) {
+                        Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
+                        Button(
+                            onClick = {
+                                vm.toggleRecording()
+                                val timestamp = Clock.System.now().toString().replace(":", "-")
+                                saveLauncher.launch("lidar-session-$timestamp.json")
+                            },
+                            enabled = !replaying
+                        ) { Text("Save") }
+                    }
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
