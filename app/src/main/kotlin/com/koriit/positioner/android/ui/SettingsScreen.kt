@@ -3,6 +3,8 @@ package com.koriit.positioner.android.ui
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -11,6 +13,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 
 @Composable
@@ -24,7 +27,7 @@ fun SettingsPanel(vm: LidarViewModel) {
     val minDistance by vm.minDistance.collectAsState()
     val isolationDistance by vm.isolationDistance.collectAsState()
 
-    Column {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = autoScale, onCheckedChange = { vm.autoScale.value = it })
             Text("Auto scale")
@@ -34,46 +37,46 @@ fun SettingsPanel(vm: LidarViewModel) {
             Text("Show logs")
         }
         Text("Flush interval: ${flushInterval.toInt()} ms")
-        Slider(
+        SliderWithActions(
             value = flushInterval,
             onValueChange = { vm.flushIntervalMs.value = it },
             valueRange = 50f..1000f,
-            modifier = Modifier.fillMaxWidth(),
+            onReset = { vm.resetFlushInterval() }
         )
         Text("Color gradient min: ${gradientMin.toInt()}")
-        Slider(
+        SliderWithActions(
             value = gradientMin,
             onValueChange = { vm.gradientMin.value = it },
             valueRange = 0f..255f,
-            modifier = Modifier.fillMaxWidth(),
+            onReset = { vm.resetGradientMin() }
         )
         Text("Confidence threshold: ${confidence.toInt()}")
-        Slider(
+        SliderWithActions(
             value = confidence,
             onValueChange = { vm.confidenceThreshold.value = it },
             valueRange = 0f..255f,
-            modifier = Modifier.fillMaxWidth(),
+            onReset = { vm.resetConfidenceThreshold() }
         )
         Text("Min distance: ${"%.2f".format(minDistance)} m")
-        Slider(
+        SliderWithActions(
             value = minDistance,
             onValueChange = { vm.minDistance.value = it },
             valueRange = 0f..2f,
-            modifier = Modifier.fillMaxWidth(),
+            onReset = { vm.resetMinDistance() }
         )
         Text("Isolation distance: ${"%.2f".format(isolationDistance)} m")
-        Slider(
+        SliderWithActions(
             value = isolationDistance,
             onValueChange = { vm.isolationDistance.value = it },
             valueRange = 0f..5f,
-            modifier = Modifier.fillMaxWidth(),
+            onReset = { vm.resetIsolationDistance() }
         )
         Text("Buffer size: $bufferSize")
-        Slider(
+        SliderWithActions(
             value = bufferSize.toFloat(),
             onValueChange = { vm.bufferSize.value = it.toInt() },
             valueRange = 100f..1000f,
-            modifier = Modifier.fillMaxWidth(),
+            onReset = { vm.resetBufferSize() }
         )
     }
 }

@@ -63,6 +63,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation(libs.material)
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation(libs.compose.icons.extended)
     implementation(libs.coroutines)
     implementation(libs.usbserial)
     implementation(libs.serialization.json)
