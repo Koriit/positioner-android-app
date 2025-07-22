@@ -22,9 +22,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.datetime.Instant
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.decodeFromStream
 
 class LidarViewModel(private val context: Context) : ViewModel() {
     companion object {
@@ -56,6 +56,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val replayPositionMs = MutableStateFlow(0L)
     val replayDurationMs = MutableStateFlow(0L)
 
+    val loadingReplay = MutableStateFlow(false)
+
     private var replayData: List<LidarMeasurement> = emptyList()
     private var readJob: Job? = null
 
@@ -82,23 +84,27 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
 
     fun loadRecording(uri: Uri, context: Context) {
-        if (recording.value || replayMode.value) return
+        if (recording.value || replayMode.value || loadingReplay.value) return
+        loadingReplay.value = true
+        readJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                val json = input.bufferedReader().readText()
-                val data = Json.decodeFromString<List<LidarMeasurement>>(json)
-                withContext(Dispatchers.Main) {
+            val data = context.contentResolver.openInputStream(uri)?.use { input ->
+                Json.decodeFromStream<List<LidarMeasurement>>(input)
+            }
+            withContext(Dispatchers.Main) {
+                loadingReplay.value = false
+                if (data.isNullOrEmpty()) {
+                    startLiveReading()
+                } else {
                     replayData = data
-                    if (replayData.isNotEmpty()) {
-                        replayDurationMs.value =
-                            replayData.last().timestamp.toEpochMilliseconds() -
-                                replayData.first().timestamp.toEpochMilliseconds()
-                        replayPositionMs.value = 0
-                        replaySpeed.value = 1f
-                        playing.value = true
-                        replayMode.value = true
-                        startReplay()
-                    }
+                    replayDurationMs.value =
+                        replayData.last().timestamp.toEpochMilliseconds() -
+                            replayData.first().timestamp.toEpochMilliseconds()
+                    replayPositionMs.value = 0
+                    replaySpeed.value = 1f
+                    playing.value = true
+                    replayMode.value = true
+                    startReplay()
                 }
             }
         }
@@ -110,6 +116,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         replayData = emptyList()
         replayPositionMs.value = 0
         _measurements.value = emptyList()
+        loadingReplay.value = false
         readJob?.cancel()
         startLiveReading()
     }

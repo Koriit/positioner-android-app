@@ -60,6 +60,7 @@ fun LidarScreen(vm: LidarViewModel) {
     val recording by vm.recording.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
     val usbConnected by vm.usbConnected.collectAsState()
+    val loading by vm.loadingReplay.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -106,7 +107,15 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                 )
-                if (!usbConnected && !replaying) {
+                if (loading) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Loading recording...")
+                    }
+                } else if (!usbConnected && !replaying) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -143,7 +152,7 @@ fun LidarScreen(vm: LidarViewModel) {
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
                     onClick = { loadLauncher.launch(arrayOf("application/json")) },
-                    enabled = !recording && !replaying
+                    enabled = !recording && !replaying && !loading
                 ) { Text("Load") }
                 if (replaying) {
                     Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
@@ -174,7 +183,15 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                 )
-                if (!usbConnected && !replaying) {
+                if (loading) {
+                    Column(
+                        modifier = Modifier.align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Loading recording...")
+                    }
+                } else if (!usbConnected && !replaying) {
                     Column(
                         modifier = Modifier.align(Alignment.Center),
                         horizontalAlignment = Alignment.CenterHorizontally
@@ -223,7 +240,7 @@ fun LidarScreen(vm: LidarViewModel) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
                         onClick = { loadLauncher.launch(arrayOf("application/json")) },
-                        enabled = !recording && !replaying
+                        enabled = !recording && !replaying && !loading
                     ) { Text("Load") }
                     if (replaying) {
                         Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
