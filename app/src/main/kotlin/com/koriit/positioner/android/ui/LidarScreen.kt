@@ -84,7 +84,12 @@ fun LidarScreen(vm: LidarViewModel) {
                 Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
             }
             if (showSettings) {
-                SettingsPanel(vm)
+                SettingsPanel(
+                    vm,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
             }
             Box(
                 modifier = Modifier
@@ -186,7 +191,12 @@ fun LidarScreen(vm: LidarViewModel) {
                     Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
                 }
                 if (showSettings) {
-                    SettingsPanel(vm)
+                    SettingsPanel(
+                        vm,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }

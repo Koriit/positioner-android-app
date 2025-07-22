@@ -17,7 +17,7 @@ import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 
 @Composable
-fun SettingsPanel(vm: LidarViewModel) {
+fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val autoScale by vm.autoScale.collectAsState()
     val showLogs by vm.showLogs.collectAsState()
     val bufferSize by vm.bufferSize.collectAsState()
@@ -27,7 +27,7 @@ fun SettingsPanel(vm: LidarViewModel) {
     val minDistance by vm.minDistance.collectAsState()
     val isolationDistance by vm.isolationDistance.collectAsState()
 
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+    Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = autoScale, onCheckedChange = { vm.autoScale.value = it })
             Text("Auto scale")

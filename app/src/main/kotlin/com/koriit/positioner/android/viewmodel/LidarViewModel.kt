@@ -83,18 +83,23 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     fun loadRecording(uri: Uri, context: Context) {
         if (recording.value || replayMode.value) return
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            val json = input.bufferedReader().readText()
-            replayData = Json.decodeFromString(json)
-            if (replayData.isNotEmpty()) {
-                replayDurationMs.value =
-                    replayData.last().timestamp.toEpochMilliseconds() -
-                        replayData.first().timestamp.toEpochMilliseconds()
-                replayPositionMs.value = 0
-                replaySpeed.value = 1f
-                playing.value = true
-                replayMode.value = true
-                startReplay()
+        viewModelScope.launch(Dispatchers.IO) {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val json = input.bufferedReader().readText()
+                val data = Json.decodeFromString<List<LidarMeasurement>>(json)
+                withContext(Dispatchers.Main) {
+                    replayData = data
+                    if (replayData.isNotEmpty()) {
+                        replayDurationMs.value =
+                            replayData.last().timestamp.toEpochMilliseconds() -
+                                replayData.first().timestamp.toEpochMilliseconds()
+                        replayPositionMs.value = 0
+                        replaySpeed.value = 1f
+                        playing.value = true
+                        replayMode.value = true
+                        startReplay()
+                    }
+                }
             }
         }
     }
