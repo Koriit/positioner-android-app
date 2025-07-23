@@ -152,7 +152,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     private fun startLiveReading() {
         readJob?.cancel()
-        readJob = viewModelScope.launch {
+        // Run the long running read loop on a background dispatcher so heavy
+        // filtering does not block the UI thread. MutableStateFlow is
+        // thread-safe so updates from a background coroutine are safe.
+        readJob = viewModelScope.launch(Dispatchers.Default) {
             val buffer = ArrayDeque<LidarMeasurement>()
             var lastFlush = System.currentTimeMillis()
             var lastSecond = System.currentTimeMillis()
@@ -224,7 +227,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     private fun startReplay() {
         readJob?.cancel()
-        readJob = viewModelScope.launch {
+        // Replay processing can be CPU intensive with large recordings, so run
+        // the loop on a background dispatcher to keep the UI responsive.
+        readJob = viewModelScope.launch(Dispatchers.Default) {
             val buffer = ArrayDeque<LidarMeasurement>()
             var lastFlush = System.currentTimeMillis()
             var lastSecond = System.currentTimeMillis()
