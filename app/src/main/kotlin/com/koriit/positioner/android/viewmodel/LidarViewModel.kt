@@ -238,17 +238,19 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
             val firstMs = replayData.first().timestamp.toEpochMilliseconds()
-            var index = findIndexForPosition(replayPositionMs.value)
+            var lastSeek = replayPositionMs.value
+            var index = findIndexForPosition(lastSeek)
             while (replayMode.value && index < replayData.size) {
                 if (!playing.value) {
                     delay(50)
                     continue
                 }
-                val desired = findIndexForPosition(replayPositionMs.value)
-                if (desired != index) {
-                    index = desired
+                val desired = replayPositionMs.value
+                if (desired != lastSeek) {
+                    index = findIndexForPosition(desired)
                     buffer.clear()
                     lastAngle = null
+                    lastSeek = desired
                 }
                 if (bufferSize.value != currentBufferSize) {
                     currentBufferSize = bufferSize.value
@@ -282,7 +284,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     lastSecondPos = pos
                 }
 
-                replayPositionMs.value = m.timestamp.toEpochMilliseconds() - firstMs
+                val currentPos = m.timestamp.toEpochMilliseconds() - firstMs
+                replayPositionMs.value = currentPos
+                lastSeek = currentPos
                 index++
                 if (index >= replayData.size) break
                 val nextDiff = replayData[index].timestamp.toEpochMilliseconds() -
