@@ -231,8 +231,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         // the loop on a background dispatcher to keep the UI responsive.
         readJob = viewModelScope.launch(Dispatchers.Default) {
             val buffer = ArrayDeque<LidarMeasurement>()
-            var lastFlush = System.currentTimeMillis()
-            var lastSecond = System.currentTimeMillis()
+            var lastFlushPos = 0L
+            var lastSecondPos = 0L
             var count = 0
             var angleAccum = 0f
             var lastAngle: Float? = null
@@ -264,9 +264,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 }
                 lastAngle = m.angle
                 count++
-                val now = System.currentTimeMillis()
-                if (now - lastFlush >= flushIntervalMs.value.toLong()) {
-                    lastFlush = now
+                val pos = m.timestamp.toEpochMilliseconds() - firstMs
+                if (pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
+                    lastFlushPos = pos
                     _measurements.value = MeasurementFilter.apply(
                         buffer.toList(),
                         confidenceThreshold.value.toInt(),
@@ -274,20 +274,37 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         isolationDistance.value,
                     )
                 }
-                if (now - lastSecond >= 1000) {
+                if (pos - lastSecondPos >= 1000) {
                     measurementsPerSecond.value = count
                     rotationsPerSecond.value = angleAccum / 360f
                     angleAccum = 0f
                     count = 0
-                    lastSecond = now
+                    lastSecondPos = pos
                 }
 
                 replayPositionMs.value = m.timestamp.toEpochMilliseconds() - firstMs
                 index++
                 if (index >= replayData.size) break
-                val nextDiff = replayData[index].timestamp.toEpochMilliseconds() - m.timestamp.toEpochMilliseconds()
+                val nextDiff = replayData[index].timestamp.toEpochMilliseconds() -
+                    m.timestamp.toEpochMilliseconds()
+                // Ignore zero or negative delays which appear in some recordings
+                // to avoid tight loops and absurd measurement rates
                 val delayMs = (nextDiff / replaySpeed.value).toLong()
-                delay(delayMs)
+                if (delayMs > 0) delay(delayMs) else continue
+            }
+            // Flush remaining data so the final frame appears
+            _measurements.value = MeasurementFilter.apply(
+                buffer.toList(),
+                confidenceThreshold.value.toInt(),
+                minDistance.value,
+                isolationDistance.value,
+            )
+            // Mark playback finished so UI values like measurements per second
+            // reset once the dataset ends.
+            withContext(Dispatchers.Main) {
+                playing.value = false
+                rotationsPerSecond.value = 0f
+                measurementsPerSecond.value = 0
             }
         }
     }
