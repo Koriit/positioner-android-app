@@ -63,6 +63,7 @@ fun LidarScreen(vm: LidarViewModel) {
     val confidence by vm.confidenceThreshold.collectAsState()
     val usbConnected by vm.usbConnected.collectAsState()
     val loading by vm.loadingReplay.collectAsState()
+    val floorPlan by vm.floorPlan.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -70,6 +71,9 @@ fun LidarScreen(vm: LidarViewModel) {
     }
     val loadLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.loadRecording(it, context) }
+    }
+    val floorPlanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) vm.loadFloorPlan(uris, context)
     }
 
     var showSettings by remember { mutableStateOf(false) }
@@ -108,6 +112,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     autoScale = autoScale,
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
+                    floorPlan = floorPlan,
                 )
                 if (loading) {
                     Column(
@@ -160,6 +165,12 @@ fun LidarScreen(vm: LidarViewModel) {
                     Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
                 }
             }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { floorPlanLauncher.launch(arrayOf("application/json")) },
+                    enabled = !loading
+                ) { Text("Load Floor Plan") }
+            }
             if (replaying) {
                 ReplayControls(vm)
             }
@@ -184,6 +195,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     autoScale = autoScale,
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
+                    floorPlan = floorPlan,
                 )
                 if (loading) {
                     Column(
@@ -242,18 +254,24 @@ fun LidarScreen(vm: LidarViewModel) {
                         ) { Text("Save") }
                     }
                 }
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Button(
-                        onClick = { loadLauncher.launch(arrayOf("application/json")) },
-                        enabled = !recording && !replaying && !loading
-                    ) { Text("Load") }
-                    if (replaying) {
-                        Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
-                    }
-                }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { loadLauncher.launch(arrayOf("application/json")) },
+                    enabled = !recording && !replaying && !loading
+                ) { Text("Load") }
                 if (replaying) {
-                    ReplayControls(vm)
+                    Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
                 }
+            }
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = { floorPlanLauncher.launch(arrayOf("application/json")) },
+                    enabled = !loading
+                ) { Text("Load Floor Plan") }
+            }
+            if (replaying) {
+                ReplayControls(vm)
+            }
                 Text("Measurements/s: $mps")
                 Text("Rotations/s: ${"%.2f".format(rps)}")
                 if (showLogs) {

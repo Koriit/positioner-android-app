@@ -1,5 +1,6 @@
 == Isolation distance filter
 
 The isolation distance slider removes stray points that have no neighbours within the specified radius.
-The distance is measured in metres. The default value is 1m.
+The distance is measured in metres. The default value is 0.75m.
+Points must have at least two neighbours within this radius to remain visible.
 This filter is applied after measurements are read so recordings keep every data point.
