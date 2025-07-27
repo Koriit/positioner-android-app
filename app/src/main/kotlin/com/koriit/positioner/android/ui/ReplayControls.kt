@@ -2,7 +2,12 @@ package com.koriit.positioner.android.ui
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -37,9 +42,13 @@ fun ReplayControls(vm: LidarViewModel) {
             Button(onClick = { vm.seekBy(-1000) }) { Text("-1s") }
             Button(onClick = { vm.togglePlay() }) { Text(if (playing) "Pause" else "Play") }
             Button(onClick = { vm.seekBy(1000) }) { Text("+1s") }
-            Button(onClick = { vm.changeSpeed(0.5f) }) { Text("Slower") }
+            IconButton(onClick = { vm.changeSpeed(0.5f) }) {
+                Icon(Icons.Filled.FastRewind, contentDescription = "Slower")
+            }
             Text(String.format("%.1fx", speed))
-            Button(onClick = { vm.changeSpeed(2f) }) { Text("Faster") }
+            IconButton(onClick = { vm.changeSpeed(2f) }) {
+                Icon(Icons.Filled.FastForward, contentDescription = "Faster")
+            }
         }
         Text("${pos/1000}s / ${duration/1000}s")
     }

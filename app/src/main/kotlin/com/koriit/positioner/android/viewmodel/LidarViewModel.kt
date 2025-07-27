@@ -30,8 +30,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     companion object {
         const val DEFAULT_FLUSH_INTERVAL_MS = 50f
         const val DEFAULT_BUFFER_SIZE = 480
-        const val DEFAULT_CONFIDENCE_THRESHOLD = 220f
-        const val DEFAULT_GRADIENT_MIN = 200f
+        const val DEFAULT_CONFIDENCE_THRESHOLD = 200f
+        const val DEFAULT_GRADIENT_MIN = 180f
         const val DEFAULT_MIN_DISTANCE = 0.5f
         const val DEFAULT_ISOLATION_DISTANCE = 1f
     }
@@ -121,7 +121,13 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         startLiveReading()
     }
 
-    fun togglePlay() { playing.value = !playing.value }
+    fun togglePlay() {
+        val newState = !playing.value
+        playing.value = newState
+        if (newState && replayMode.value && (readJob == null || !readJob!!.isActive)) {
+            startReplay()
+        }
+    }
 
     fun seekBy(ms: Long) { seekTo(replayPositionMs.value + ms) }
 
@@ -140,6 +146,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
      */
     fun seekTo(ms: Long) {
         replayPositionMs.value = ms.coerceIn(0L, replayDurationMs.value)
+        if (replayMode.value && playing.value && (readJob == null || !readJob!!.isActive)) {
+            startReplay()
+        }
     }
 
     fun saveSession(uri: Uri, context: Context) {

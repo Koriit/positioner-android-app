@@ -4,4 +4,4 @@ The main screen provides a few controls to adjust how lidar measurements are ren
 
 * **Rotate 90\u00B0** - rotates the coordinate system clockwise by ninety degrees. Use this when the sensor orientation doesn't match the default plot.
 The **Auto scale** option is available from the settings panel. It automatically scales the plot so that all current measurements fit inside the canvas.
-The panel also includes a **Color gradient min** slider that controls the lowest confidence mapped to green. The default is 200.
+The panel also includes a **Color gradient min** slider that controls the lowest confidence mapped to green. The default is 180.
