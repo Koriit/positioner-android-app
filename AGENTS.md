@@ -1,5 +1,8 @@
 # Developer instructions
 
+## Context
+- Read `PROJECT.md` for additional project context.
+
 ## Tooling
 - If you detect warnings or issues with the tooling (like gradle), provide recommendations or try to fix it if it's safe.
 
