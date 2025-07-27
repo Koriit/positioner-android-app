@@ -76,6 +76,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation(libs.junit.jupiter)
+    testImplementation(libs.org.json)
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

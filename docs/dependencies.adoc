@@ -45,6 +45,8 @@ This project uses a small set of libraries. The table below explains why each de
 
 |JUnit Platform Launcher
 |Allows Gradle to execute JUnit 5 tests.
+|org.json
+|Provides a full implementation of `JSONObject` for unit tests.
 |Firebase Crashlytics
 |Collects crash reports for real user sessions.
 |===

@@ -12,6 +12,7 @@ usbserial = "3.9.0"
 serialization = "1.8.1"
 datetime = "0.6.2"
 lifecycle = "2.7.0"
+json = "20250517"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
@@ -28,6 +29,7 @@ datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "d
 lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 compose-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
+org-json = { module = "org.json:json", version.ref = "json" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle" }

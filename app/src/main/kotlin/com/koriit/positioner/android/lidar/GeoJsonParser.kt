@@ -18,7 +18,11 @@ object GeoJsonParser {
     }
 
     fun parse(json: String): List<List<Pair<Float, Float>>> {
-        val obj = JSONObject(json)
+        // Some GeoJSON files may contain non-breaking spaces (U+00A0),
+        // which `JSONObject` fails to treat as valid whitespace.
+        // Normalize the input before parsing to avoid `JSONException`.
+        val normalized = json.replace('\u00A0', ' ')
+        val obj = JSONObject(normalized)
         return when (obj.getString("type")) {
             "FeatureCollection" -> parseFeatureCollection(obj)
             "Feature" -> parseFeature(obj)
