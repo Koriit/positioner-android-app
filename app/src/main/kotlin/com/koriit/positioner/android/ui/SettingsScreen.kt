@@ -26,6 +26,7 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val gradientMin by vm.gradientMin.collectAsState()
     val minDistance by vm.minDistance.collectAsState()
     val isolationDistance by vm.isolationDistance.collectAsState()
+    val isolationMinNeighbours by vm.isolationMinNeighbours.collectAsState()
 
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -70,6 +71,13 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
             onValueChange = { vm.isolationDistance.value = it },
             valueRange = 0f..5f,
             onReset = { vm.resetIsolationDistance() }
+        )
+        Text("Isolation neighbours: $isolationMinNeighbours")
+        SliderWithActions(
+            value = isolationMinNeighbours.toFloat(),
+            onValueChange = { vm.isolationMinNeighbours.value = it.toInt() },
+            valueRange = 0f..10f,
+            onReset = { vm.resetIsolationMinNeighbours() }
         )
         Text("Buffer size: $bufferSize")
         SliderWithActions(

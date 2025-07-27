@@ -10,6 +10,7 @@ import com.koriit.positioner.android.lidar.LidarDataSource
 import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
+import com.koriit.positioner.android.lidar.GeoJsonParser
 import com.koriit.positioner.android.logging.AppLog
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.crashlytics.ktx.crashlytics
@@ -33,7 +34,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_CONFIDENCE_THRESHOLD = 200f
         const val DEFAULT_GRADIENT_MIN = 180f
         const val DEFAULT_MIN_DISTANCE = 0.5f
-        const val DEFAULT_ISOLATION_DISTANCE = 1f
+        const val DEFAULT_ISOLATION_DISTANCE = 0.75f
+        const val DEFAULT_MIN_NEIGHBOURS = 2
     }
 
     val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
@@ -46,6 +48,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val gradientMin = MutableStateFlow(DEFAULT_GRADIENT_MIN)
     val minDistance = MutableStateFlow(DEFAULT_MIN_DISTANCE) // metres
     val isolationDistance = MutableStateFlow(DEFAULT_ISOLATION_DISTANCE) // metres
+    val isolationMinNeighbours = MutableStateFlow(DEFAULT_MIN_NEIGHBOURS)
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -64,6 +67,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
+    val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
 
     init {
         startLiveReading()
@@ -81,6 +85,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetConfidenceThreshold() { confidenceThreshold.value = DEFAULT_CONFIDENCE_THRESHOLD }
     fun resetMinDistance() { minDistance.value = DEFAULT_MIN_DISTANCE }
     fun resetIsolationDistance() { isolationDistance.value = DEFAULT_ISOLATION_DISTANCE }
+    fun resetIsolationMinNeighbours() { isolationMinNeighbours.value = DEFAULT_MIN_NEIGHBOURS }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
 
     fun loadRecording(uri: Uri, context: Context) {
@@ -159,6 +164,13 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    fun loadFloorPlan(uris: List<Uri>, context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val plans = GeoJsonParser.readFloorPlans(context, uris)
+            withContext(Dispatchers.Main) { floorPlan.value = plans }
+        }
+    }
+
     private fun startLiveReading() {
         readJob?.cancel()
         // Run the long running read loop on a background dispatcher so heavy
@@ -205,6 +217,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                                 confidenceThreshold.value.toInt(),
                                 minDistance.value,
                                 isolationDistance.value,
+                                isolationMinNeighbours.value,
                             )
                         }
                         if (now - lastSecond >= 1000) {
@@ -283,6 +296,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         confidenceThreshold.value.toInt(),
                         minDistance.value,
                         isolationDistance.value,
+                        isolationMinNeighbours.value,
                     )
                 }
                 if (pos - lastSecondPos >= 1000) {
@@ -311,6 +325,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 confidenceThreshold.value.toInt(),
                 minDistance.value,
                 isolationDistance.value,
+                isolationMinNeighbours.value,
             )
             // Mark playback finished so UI values like measurements per second
             // reset once the dataset ends.

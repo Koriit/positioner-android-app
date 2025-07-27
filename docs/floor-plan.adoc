@@ -1,0 +1,5 @@
+== Floor plan overlay
+
+You can load one or more GeoJSON files describing your building layout.
+Each LineString or Polygon ring is drawn in blue on top of the LiDAR plot.
+This helps orient measurements relative to real walls.

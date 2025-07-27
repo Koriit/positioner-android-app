@@ -25,6 +25,7 @@ fun LidarPlot(
     autoScale: Boolean = false,
     confidenceThreshold: Int = 100,
     gradientMin: Int = 100,
+    floorPlan: List<List<Pair<Float, Float>>> = emptyList(),
 ) {
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
@@ -64,6 +65,32 @@ fun LidarPlot(
         }
 
         translate(left = center.x, top = center.y) {
+            floorPlan.forEach { polygon ->
+                for (i in 0 until polygon.size - 1) {
+                    var (x1, y1) = polygon[i]
+                    var (x2, y2) = polygon[i + 1]
+                    if (rotation != 0) {
+                        val angleRad = Math.toRadians(rotation.toDouble())
+                        val cos = kotlin.math.cos(angleRad).toFloat()
+                        val sin = kotlin.math.sin(angleRad).toFloat()
+                        val rx1 = x1 * cos - y1 * sin
+                        val ry1 = x1 * sin + y1 * cos
+                        val rx2 = x2 * cos - y2 * sin
+                        val ry2 = x2 * sin + y2 * cos
+                        x1 = rx1
+                        y1 = ry1
+                        x2 = rx2
+                        y2 = ry2
+                    }
+                    drawLine(
+                        color = Color.Blue,
+                        start = Offset(x1 * scale, -y1 * scale),
+                        end = Offset(x2 * scale, -y2 * scale),
+                        strokeWidth = 2f
+                    )
+                }
+            }
+
             points.forEach { (x, y, confidence) ->
                 val px = x * scale
                 val py = -y * scale
@@ -223,5 +250,6 @@ fun PreviewLidarPlot() {
         rotation = 0,
         autoScale = true,
         confidenceThreshold = 100,
+        floorPlan = emptyList(),
     )
 }
