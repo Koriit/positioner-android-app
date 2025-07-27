@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
@@ -201,9 +203,12 @@ fun LidarScreen(vm: LidarViewModel) {
                     }
                 }
             }
-            Column(modifier = Modifier
-                .fillMaxHeight()
-                .weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+            ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
                 }
