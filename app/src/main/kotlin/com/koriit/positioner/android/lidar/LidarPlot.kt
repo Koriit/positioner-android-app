@@ -42,13 +42,18 @@ fun LidarPlot(
             Triple(x, y, m.confidence)
         }
 
+        val planRange = floorPlan.flatten().maxOfOrNull { (x, y) ->
+            kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat()
+        } ?: 0f
+
+        val pointRange = points.maxOfOrNull { (x, y, _) ->
+            kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat()
+        } ?: 0f
+
         val maxRange = if (autoScale) {
-            points.maxOfOrNull { (x, y, _) ->
-                kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat()
-            }
-                ?: 1f
+            maxOf(planRange, pointRange).coerceAtLeast(1f)
         } else {
-            4f // metres, matches python default
+            maxOf(4f, planRange)
         }
 
         val scale = min(size.width, size.height) / (maxRange * 2f)

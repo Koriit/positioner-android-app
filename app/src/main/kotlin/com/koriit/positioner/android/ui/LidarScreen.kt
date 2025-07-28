@@ -103,7 +103,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     .fillMaxWidth()
                     .weight(1f)
                     .background(Color.White)
-                    .border(2.dp, color = Color.Blue)
+                    .border(2.dp, color = Color.Black)
             ) {
                 LidarPlot(
                     measurements,
@@ -186,7 +186,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     .fillMaxHeight()
                     .weight(1f)
                     .background(Color.White)
-                    .border(2.dp, color = Color.Blue)
+                    .border(2.dp, color = Color.Black)
             ) {
                 LidarPlot(
                     measurements,
