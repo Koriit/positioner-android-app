@@ -1,5 +1,7 @@
 == Floor plan overlay
 
 You can load one or more GeoJSON files describing your building layout.
-Each LineString or Polygon ring is drawn in blue on top of the LiDAR plot.
+Each `LineString` or `Polygon` ring is drawn in blue on top of the LiDAR plot.
+When *Auto scale* is enabled the canvas size now also accounts for the loaded
+floor plan so the outline remains visible even before any LiDAR points appear.
 This helps orient measurements relative to real walls.
