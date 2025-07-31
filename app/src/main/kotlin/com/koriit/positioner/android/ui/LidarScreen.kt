@@ -64,6 +64,9 @@ fun LidarScreen(vm: LidarViewModel) {
     val usbConnected by vm.usbConnected.collectAsState()
     val loading by vm.loadingReplay.collectAsState()
     val floorPlan by vm.floorPlan.collectAsState()
+    val planOrientation by vm.planOrientation.collectAsState()
+    val planScale by vm.planScale.collectAsState()
+    val userPosition by vm.userPosition.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -113,6 +116,9 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
+                    planOrientation = planOrientation,
+                    planScale = planScale,
+                    userPosition = userPosition,
                 )
                 if (loading) {
                     Column(
@@ -196,6 +202,9 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
+                    planOrientation = planOrientation,
+                    planScale = planScale,
+                    userPosition = userPosition,
                 )
                 if (loading) {
                     Column(

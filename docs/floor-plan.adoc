@@ -5,3 +5,7 @@ Each `LineString` or `Polygon` ring is drawn in blue on top of the LiDAR plot.
 When *Auto scale* is enabled the canvas size now also accounts for the loaded
 floor plan so the outline remains visible even before any LiDAR points appear.
 This helps orient measurements relative to real walls.
+
+The first loaded polygon is also used to estimate the sensor orientation, scale
+and the user's position. As new measurements arrive the red dot moves around the
+map to reflect the estimated location of the device.

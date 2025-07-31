@@ -11,6 +11,7 @@ import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
+import com.koriit.positioner.android.localization.PositionEstimator
 import com.koriit.positioner.android.logging.AppLog
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.crashlytics.ktx.crashlytics
@@ -69,6 +70,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
     val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
 
+    val planOrientation = MutableStateFlow(0f)
+    val planScale = MutableStateFlow(1f)
+    val userPosition = MutableStateFlow(0f to 0f)
+
     init {
         startLiveReading()
     }
@@ -87,6 +92,16 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetIsolationDistance() { isolationDistance.value = DEFAULT_ISOLATION_DISTANCE }
     fun resetIsolationMinNeighbours() { isolationMinNeighbours.value = DEFAULT_MIN_NEIGHBOURS }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
+
+    private fun updateTransform(measurements: List<LidarMeasurement>) {
+        if (floorPlan.value.isEmpty()) return
+        val estimate = PositionEstimator.estimate(measurements, floorPlan.value.first())
+        if (estimate != null) {
+            planOrientation.value = estimate.orientation
+            planScale.value = estimate.scale
+            userPosition.value = estimate.position
+        }
+    }
 
     fun loadRecording(uri: Uri, context: Context) {
         if (recording.value || replayMode.value || loadingReplay.value) return
@@ -167,7 +182,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun loadFloorPlan(uris: List<Uri>, context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             val plans = GeoJsonParser.readFloorPlans(context, uris)
-            withContext(Dispatchers.Main) { floorPlan.value = plans }
+            withContext(Dispatchers.Main) {
+                floorPlan.value = plans
+            }
         }
     }
 
@@ -219,6 +236,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                                 isolationDistance.value,
                                 isolationMinNeighbours.value,
                             )
+                            updateTransform(_measurements.value)
                         }
                         if (now - lastSecond >= 1000) {
                             measurementsPerSecond.value = count
@@ -298,6 +316,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         isolationDistance.value,
                         isolationMinNeighbours.value,
                     )
+                    updateTransform(_measurements.value)
                 }
                 if (pos - lastSecondPos >= 1000) {
                     measurementsPerSecond.value = count
@@ -327,6 +346,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 isolationDistance.value,
                 isolationMinNeighbours.value,
             )
+            updateTransform(_measurements.value)
             // Mark playback finished so UI values like measurements per second
             // reset once the dataset ends.
             withContext(Dispatchers.Main) {
