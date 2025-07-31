@@ -13,6 +13,7 @@ serialization = "1.8.1"
 datetime = "0.6.2"
 lifecycle = "2.7.0"
 json = "20250517"
+jts = "1.19.0"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
@@ -30,6 +31,7 @@ lifecycle-viewmodel-ktx = { module = "androidx.lifecycle:lifecycle-viewmodel-ktx
 lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 compose-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 org-json = { module = "org.json:json", version.ref = "json" }
+jts-core = { module = "org.locationtech.jts:jts-core", version.ref = "jts" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle" }

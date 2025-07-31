@@ -70,6 +70,7 @@ dependencies {
     implementation(libs.datetime)
     implementation(libs.lifecycle.viewmodel.ktx)
     implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.jts.core)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
