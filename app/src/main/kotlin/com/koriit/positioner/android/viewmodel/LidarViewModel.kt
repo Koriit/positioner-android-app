@@ -11,7 +11,9 @@ import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
-import com.koriit.positioner.android.localization.PositionEstimator
+import com.koriit.positioner.android.localization.OccupancyGrid
+import com.koriit.positioner.android.localization.OccupancyPoseEstimator
+import com.koriit.positioner.android.localization.PositionFilter
 import com.koriit.positioner.android.logging.AppLog
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.crashlytics.ktx.crashlytics
@@ -74,6 +76,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val planScale = MutableStateFlow(1f)
     val userPosition = MutableStateFlow(0f to 0f)
 
+    private var occupancyGrid: OccupancyGrid? = null
+
     init {
         startLiveReading()
     }
@@ -94,12 +98,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
 
     private fun updateTransform(measurements: List<LidarMeasurement>) {
-        if (floorPlan.value.isEmpty()) return
-        val estimate = PositionEstimator.estimate(measurements, floorPlan.value.first())
+        val grid = occupancyGrid ?: return
+        val estimate = OccupancyPoseEstimator.estimate(measurements, grid)
         if (estimate != null) {
             planOrientation.value = estimate.orientation
             planScale.value = estimate.scale
-            userPosition.value = estimate.position
+            userPosition.value = PositionFilter.update(estimate.position)
         }
     }
 
@@ -184,6 +188,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             val plans = GeoJsonParser.readFloorPlans(context, uris)
             withContext(Dispatchers.Main) {
                 floorPlan.value = plans
+                occupancyGrid = plans.firstOrNull()?.let { OccupancyGrid.fromPolygon(it) }
+                PositionFilter.reset()
             }
         }
     }
