@@ -7,5 +7,6 @@ floor plan so the outline remains visible even before any LiDAR points appear.
 This helps orient measurements relative to real walls.
 
 The first loaded polygon is also used to estimate the sensor orientation, scale
-and the user's position. As new measurements arrive the red dot moves around the
-map to reflect the estimated location of the device.
+and the user's position. Measurements are rotated to match the detected
+orientation while the floor plan remains fixed. As new points arrive the red dot
+moves around the map to reflect the estimated location of the device.

@@ -33,6 +33,15 @@ fun LidarPlot(
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
             var (x, y) = m.toPoint()
+            if (planOrientation != 0f) {
+                val angleRad = Math.toRadians(planOrientation.toDouble())
+                val cos = kotlin.math.cos(angleRad).toFloat()
+                val sin = kotlin.math.sin(angleRad).toFloat()
+                val rx = x * cos - y * sin
+                val ry = x * sin + y * cos
+                x = rx
+                y = ry
+            }
             if (rotation != 0) {
                 val angleRad = Math.toRadians(rotation.toDouble())
                 val cos = kotlin.math.cos(angleRad).toFloat()
@@ -77,20 +86,6 @@ fun LidarPlot(
                 for (i in 0 until polygon.size - 1) {
                     var (x1, y1) = polygon[i]
                     var (x2, y2) = polygon[i + 1]
-
-                    if (planOrientation != 0f) {
-                        val angleRad = Math.toRadians(planOrientation.toDouble())
-                        val cos = kotlin.math.cos(angleRad).toFloat()
-                        val sin = kotlin.math.sin(angleRad).toFloat()
-                        val rx1 = x1 * cos - y1 * sin
-                        val ry1 = x1 * sin + y1 * cos
-                        val rx2 = x2 * cos - y2 * sin
-                        val ry2 = x2 * sin + y2 * cos
-                        x1 = rx1
-                        y1 = ry1
-                        x2 = rx2
-                        y2 = ry2
-                    }
                     x1 *= planScale
                     y1 *= planScale
                     x2 *= planScale
@@ -137,15 +132,6 @@ fun LidarPlot(
             userPosition?.let { (ux, uy) ->
                 var x = ux * planScale
                 var y = uy * planScale
-                if (planOrientation != 0f) {
-                    val angleRad = Math.toRadians(planOrientation.toDouble())
-                    val cos = kotlin.math.cos(angleRad).toFloat()
-                    val sin = kotlin.math.sin(angleRad).toFloat()
-                    val rx = x * cos - y * sin
-                    val ry = x * sin + y * cos
-                    x = rx
-                    y = ry
-                }
                 if (rotation != 0) {
                     val angleRad = Math.toRadians(rotation.toDouble())
                     val cos = kotlin.math.cos(angleRad).toFloat()
