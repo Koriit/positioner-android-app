@@ -16,6 +16,9 @@ import kotlin.math.min
 
 /**
  * Display a scatter plot of lidar measurements.
+ * The floor plan is translated around the user's estimated position while
+ * measurements are rotated and scaled to align with it so the sensor stays in
+ * the centre.
  */
 @Composable
 fun LidarPlot(
@@ -26,24 +29,16 @@ fun LidarPlot(
     confidenceThreshold: Int = 100,
     gradientMin: Int = 100,
     floorPlan: List<List<Pair<Float, Float>>> = emptyList(),
-    planOrientation: Float = 0f,
+    measurementOrientation: Float = 0f,
     planScale: Float = 1f,
     userPosition: Pair<Float, Float>? = null,
 ) {
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
             var (x, y) = m.toPoint()
-            if (planOrientation != 0f) {
-                val angleRad = Math.toRadians(planOrientation.toDouble())
-                val cos = kotlin.math.cos(angleRad).toFloat()
-                val sin = kotlin.math.sin(angleRad).toFloat()
-                val rx = x * cos - y * sin
-                val ry = x * sin + y * cos
-                x = rx
-                y = ry
-            }
-            if (rotation != 0) {
-                val angleRad = Math.toRadians(rotation.toDouble())
+            val total = rotation.toFloat() + measurementOrientation
+            if (total != 0f) {
+                val angleRad = Math.toRadians(total.toDouble())
                 val cos = kotlin.math.cos(angleRad).toFloat()
                 val sin = kotlin.math.sin(angleRad).toFloat()
                 val rx = x * cos - y * sin
@@ -54,8 +49,12 @@ fun LidarPlot(
             Triple(x, y, m.confidence)
         }
 
+        val (ux, uy) = userPosition ?: (0f to 0f)
+
         val planRange = floorPlan.flatten().maxOfOrNull { (x, y) ->
-            kotlin.math.hypot((x * planScale).toDouble(), (y * planScale).toDouble()).toFloat()
+            val sx = (x - ux) * planScale
+            val sy = (y - uy) * planScale
+            kotlin.math.hypot(sx.toDouble(), sy.toDouble()).toFloat()
         } ?: 0f
 
         val pointRange = points.maxOfOrNull { (x, y, _) ->
@@ -86,23 +85,10 @@ fun LidarPlot(
                 for (i in 0 until polygon.size - 1) {
                     var (x1, y1) = polygon[i]
                     var (x2, y2) = polygon[i + 1]
-                    x1 *= planScale
-                    y1 *= planScale
-                    x2 *= planScale
-                    y2 *= planScale
-                    if (rotation != 0) {
-                        val angleRad = Math.toRadians(rotation.toDouble())
-                        val cos = kotlin.math.cos(angleRad).toFloat()
-                        val sin = kotlin.math.sin(angleRad).toFloat()
-                        val rx1 = x1 * cos - y1 * sin
-                        val ry1 = x1 * sin + y1 * cos
-                        val rx2 = x2 * cos - y2 * sin
-                        val ry2 = x2 * sin + y2 * cos
-                        x1 = rx1
-                        y1 = ry1
-                        x2 = rx2
-                        y2 = ry2
-                    }
+                    x1 = (x1 - ux) * planScale
+                    y1 = (y1 - uy) * planScale
+                    x2 = (x2 - ux) * planScale
+                    y2 = (y2 - uy) * planScale
                     drawLine(
                         color = Color.Blue,
                         start = Offset(x1 * scale, -y1 * scale),
@@ -129,19 +115,9 @@ fun LidarPlot(
                 drawCircle(color, radius = 3f, center = Offset(px, py))
             }
 
-            userPosition?.let { (ux, uy) ->
-                var x = ux * planScale
-                var y = uy * planScale
-                if (rotation != 0) {
-                    val angleRad = Math.toRadians(rotation.toDouble())
-                    val cos = kotlin.math.cos(angleRad).toFloat()
-                    val sin = kotlin.math.sin(angleRad).toFloat()
-                    val rx = x * cos - y * sin
-                    val ry = x * sin + y * cos
-                    x = rx
-                    y = ry
-                }
-                drawCircle(Color.Red, radius = 6f, center = Offset(x * scale, -y * scale))
+            userPosition?.let {
+                // User stays at the origin; floor plan translates around it
+                drawCircle(Color.Red, radius = 6f, center = Offset(0f, 0f))
             }
         }
 
