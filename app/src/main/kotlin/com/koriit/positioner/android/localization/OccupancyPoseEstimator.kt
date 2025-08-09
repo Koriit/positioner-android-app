@@ -6,7 +6,7 @@ import kotlin.math.sin
 
 /**
  * Estimate sensor pose relative to a floor plan using an occupancy grid.
- * This performs a brute force search over orientation and scale
+ * This performs a brute force search over orientation, scale and translation
  * and picks the combination with the most measurements hitting occupied cells.
  */
 object OccupancyPoseEstimator {
@@ -27,43 +27,53 @@ object OccupancyPoseEstimator {
         var bestScore = -1
         var bestOrientation = 0
         var bestScale = 1f
+        var bestX = 0f
+        var bestY = 0f
+
+        val gridMaxX = grid.originX + grid.width * grid.cellSize
+        val gridMaxY = grid.originY + grid.height * grid.cellSize
+
         var orient = 0
         while (orient < 360) {
+            val angleRad = Math.toRadians(orient.toDouble())
+            val cosA = cos(angleRad).toFloat()
+            val sinA = sin(angleRad).toFloat()
             var scale = scaleRange.start
-            while (scale <= scaleRange.endInclusive) {
-                var score = 0
-                for (m in measurements) {
-                    val rad = Math.toRadians((m.angle + orient).toDouble())
+            while (scale <= scaleRange.endInclusive + 1e-6f) {
+                val transformed = measurements.map { m ->
                     val r = m.distanceMm / 1000f * scale
-                    val x = sin(rad).toFloat() * r + grid.originX + grid.width * grid.cellSize / 2
-                    val y = cos(rad).toFloat() * r + grid.originY + grid.height * grid.cellSize / 2
-                    if (grid.isOccupied(x, y)) score++
+                    val mRad = Math.toRadians(m.angle.toDouble())
+                    val x = sin(mRad).toFloat() * r
+                    val y = cos(mRad).toFloat() * r
+                    val rx = x * cosA - y * sinA
+                    val ry = x * sinA + y * cosA
+                    rx to ry
                 }
-                if (score > bestScore) {
-                    bestScore = score
-                    bestOrientation = orient
-                    bestScale = scale
+
+                var y = grid.originY
+                while (y <= gridMaxY) {
+                    var x = grid.originX
+                    while (x <= gridMaxX) {
+                        var score = 0
+                        for ((px, py) in transformed) {
+                            if (grid.isOccupied(px + x, py + y)) score++
+                        }
+                        if (score > bestScore) {
+                            bestScore = score
+                            bestOrientation = orient
+                            bestScale = scale
+                            bestX = x
+                            bestY = y
+                        }
+                        x += grid.cellSize
+                    }
+                    y += grid.cellSize
                 }
                 scale += scaleStep
             }
             orient += orientationStep
         }
         if (bestScore <= 0) return null
-        // compute translation between measurement centroid and grid centre
-        val centerX = grid.originX + grid.width * grid.cellSize / 2
-        val centerY = grid.originY + grid.height * grid.cellSize / 2
-        var sumX = 0f
-        var sumY = 0f
-        for (m in measurements) {
-            val rad = Math.toRadians((m.angle + bestOrientation).toDouble())
-            val r = m.distanceMm / 1000f * bestScale
-            sumX += sin(rad).toFloat() * r
-            sumY += cos(rad).toFloat() * r
-        }
-        val avgX = sumX / measurements.size
-        val avgY = sumY / measurements.size
-        val posX = avgX - centerX
-        val posY = avgY - centerY
-        return Estimate(bestOrientation.toFloat(), bestScale, posX to posY)
+        return Estimate(bestOrientation.toFloat(), bestScale, bestX to bestY)
     }
 }

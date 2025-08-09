@@ -72,7 +72,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
     val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
 
-    val planOrientation = MutableStateFlow(0f)
+    val measurementOrientation = MutableStateFlow(0f)
     val planScale = MutableStateFlow(1f)
     val userPosition = MutableStateFlow(0f to 0f)
 
@@ -82,7 +82,15 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         startLiveReading()
     }
 
-    fun rotate90() { rotation.value += 90 }
+    /**
+     * Rotate the LiDAR plot by 90° increments when no floor plan is loaded.
+     * Once a floor plan is present orientation is determined automatically so
+     * manual rotation is ignored.
+     */
+    fun rotate90() {
+        if (floorPlan.value.isNotEmpty()) return
+        rotation.value += 90
+    }
     fun toggleRecording() {
         if (replayMode.value) return
         recording.value = !recording.value
@@ -101,7 +109,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         val grid = occupancyGrid ?: return
         val estimate = OccupancyPoseEstimator.estimate(measurements, grid)
         if (estimate != null) {
-            planOrientation.value = estimate.orientation
+            measurementOrientation.value = estimate.orientation
             planScale.value = estimate.scale
             userPosition.value = PositionFilter.update(estimate.position)
         }
@@ -183,11 +191,16 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    /**
+     * Load a GeoJSON floor plan and initialise pose estimation.
+     * Any previous manual rotation is cleared so the plan dictates orientation.
+     */
     fun loadFloorPlan(uris: List<Uri>, context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             val plans = GeoJsonParser.readFloorPlans(context, uris)
             withContext(Dispatchers.Main) {
                 floorPlan.value = plans
+                rotation.value = 0
                 occupancyGrid = plans.firstOrNull()?.let { OccupancyGrid.fromPolygon(it) }
                 PositionFilter.reset()
             }

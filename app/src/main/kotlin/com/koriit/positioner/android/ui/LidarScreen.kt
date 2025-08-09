@@ -64,7 +64,7 @@ fun LidarScreen(vm: LidarViewModel) {
     val usbConnected by vm.usbConnected.collectAsState()
     val loading by vm.loadingReplay.collectAsState()
     val floorPlan by vm.floorPlan.collectAsState()
-    val planOrientation by vm.planOrientation.collectAsState()
+    val measurementOrientation by vm.measurementOrientation.collectAsState()
     val planScale by vm.planScale.collectAsState()
     val userPosition by vm.userPosition.collectAsState()
     val configuration = LocalConfiguration.current
@@ -116,7 +116,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
-                    planOrientation = planOrientation,
+                    measurementOrientation = measurementOrientation,
                     planScale = planScale,
                     userPosition = userPosition,
                 )
@@ -141,7 +141,10 @@ fun LidarScreen(vm: LidarViewModel) {
             Text("Measurements/s: $mps")
             Text("Rotations/s: ${"%.2f".format(rps)}")
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
+                Button(
+                    onClick = { vm.rotate90() },
+                    enabled = floorPlan.isEmpty()
+                ) { Text("Rotate 90°") }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
@@ -202,7 +205,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     confidenceThreshold = confidence.toInt(),
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
-                    planOrientation = planOrientation,
+                    measurementOrientation = measurementOrientation,
                     planScale = planScale,
                     userPosition = userPosition,
                 )
@@ -242,7 +245,10 @@ fun LidarScreen(vm: LidarViewModel) {
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { vm.rotate90() }) { Text("Rotate 90°") }
+                    Button(
+                        onClick = { vm.rotate90() },
+                        enabled = floorPlan.isEmpty()
+                    ) { Text("Rotate 90°") }
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
