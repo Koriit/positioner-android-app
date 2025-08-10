@@ -55,6 +55,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
+    val combinationsPerSecond = MutableStateFlow(0f)
+    val poseComputationMs = MutableStateFlow(0L)
 
     val replayMode = MutableStateFlow(false)
     val playing = MutableStateFlow(false)
@@ -107,7 +109,11 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     private fun updateTransform(measurements: List<LidarMeasurement>) {
         val grid = occupancyGrid ?: return
-        val estimate = OccupancyPoseEstimator.estimate(measurements, grid)
+        val result = OccupancyPoseEstimator.estimate(measurements, grid)
+        poseComputationMs.value = result.durationMs
+        combinationsPerSecond.value =
+            if (result.durationMs > 0) result.combinations * 1000f / result.durationMs else 0f
+        val estimate = result.estimate
         if (estimate != null) {
             measurementOrientation.value = estimate.orientation
             planScale.value = estimate.scale

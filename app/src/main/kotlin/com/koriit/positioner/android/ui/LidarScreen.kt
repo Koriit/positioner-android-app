@@ -84,6 +84,8 @@ fun LidarScreen(vm: LidarViewModel) {
     val gradientMin by vm.gradientMin.collectAsState()
     val mps by vm.measurementsPerSecond.collectAsState()
     val rps by vm.rotationsPerSecond.collectAsState()
+    val cps by vm.combinationsPerSecond.collectAsState()
+    val poseMs by vm.poseComputationMs.collectAsState()
 
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
 
@@ -140,6 +142,8 @@ fun LidarScreen(vm: LidarViewModel) {
             }
             Text("Measurements/s: $mps")
             Text("Rotations/s: ${"%.2f".format(rps)}")
+            Text("Pose ms: $poseMs")
+            Text("Combos/s: ${"%.2f".format(cps)}")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(
                     onClick = { vm.rotate90() },
@@ -289,6 +293,8 @@ fun LidarScreen(vm: LidarViewModel) {
             }
                 Text("Measurements/s: $mps")
                 Text("Rotations/s: ${"%.2f".format(rps)}")
+                Text("Pose ms: $poseMs")
+                Text("Combos/s: ${"%.2f".format(cps)}")
                 if (showLogs) {
                     LogView(logs, modifier = Modifier.height(160.dp))
                 }
