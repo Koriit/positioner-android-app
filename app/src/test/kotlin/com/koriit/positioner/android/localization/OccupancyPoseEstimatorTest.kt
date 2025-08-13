@@ -2,6 +2,7 @@ package com.koriit.positioner.android.localization
 
 import com.koriit.positioner.android.lidar.LidarMeasurement
 import kotlin.math.min
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -25,7 +26,8 @@ class OccupancyPoseEstimatorTest {
             val dist = profile[worldAngle] * scale
             measurements.add(LidarMeasurement(deg.toFloat(), (dist * 1000).toInt(), 200))
         }
-        val est = OccupancyPoseEstimator.estimate(measurements, grid)!!
+        val result = runBlocking { OccupancyPoseEstimator.estimate(measurements, grid) }
+        val est = result.estimate!!
         println("Est: $est")
         val diff = Math.abs((est.orientation - orientation + 360) % 360)
         val angularDiff = minOf(diff, 360 - diff)

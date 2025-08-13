@@ -1,0 +1,10 @@
+ = Occupancy Structure
+
+The pose estimator uses a quadtree built from the floor-plan polygon.
+
+Each node covers a square region. Regions fully inside or outside the plan are
+stored as terminal nodes. Mixed regions are recursively subdivided until the
+desired cell size is reached. This hierarchical representation drastically
+reduces memory usage and enables fast point-in-polygon checks compared to a
+dense grid.
+

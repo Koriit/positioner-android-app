@@ -14,6 +14,7 @@ datetime = "0.6.2"
 lifecycle = "2.7.0"
 json = "20250517"
 jts = "1.19.0"
+multik = "0.2.3"
 
 [libraries]
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
@@ -32,6 +33,8 @@ lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel
 compose-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 org-json = { module = "org.json:json", version.ref = "json" }
 jts-core = { module = "org.locationtech.jts:jts-core", version.ref = "jts" }
+multik-core = { module = "org.jetbrains.kotlinx:multik-core", version.ref = "multik" }
+multik-default = { module = "org.jetbrains.kotlinx:multik-default", version.ref = "multik" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle" }
