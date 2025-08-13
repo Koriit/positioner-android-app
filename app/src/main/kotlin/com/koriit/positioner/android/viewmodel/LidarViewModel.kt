@@ -55,6 +55,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
+    /** Average number of pose combinations evaluated per second */
+    val poseCombinationsPerSecond = MutableStateFlow(0f)
+    /** Time in milliseconds to compute last pose estimate */
+    val poseEstimateMs = MutableStateFlow(0L)
 
     val replayMode = MutableStateFlow(false)
     val playing = MutableStateFlow(false)
@@ -105,10 +109,15 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetIsolationMinNeighbours() { isolationMinNeighbours.value = DEFAULT_MIN_NEIGHBOURS }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
 
-    private fun updateTransform(measurements: List<LidarMeasurement>) {
+    private suspend fun updateTransform(measurements: List<LidarMeasurement>) {
         val grid = occupancyGrid ?: return
-        val estimate = OccupancyPoseEstimator.estimate(measurements, grid)
-        if (estimate != null) {
+        val start = System.nanoTime()
+        val result = OccupancyPoseEstimator.estimate(measurements, grid)
+        val durationNs = System.nanoTime() - start
+        poseEstimateMs.value = durationNs / 1_000_000
+        poseCombinationsPerSecond.value =
+            if (durationNs > 0) result.combinations * 1_000_000_000f / durationNs else 0f
+        result.estimate?.let { estimate ->
             measurementOrientation.value = estimate.orientation
             planScale.value = estimate.scale
             userPosition.value = PositionFilter.update(estimate.position)

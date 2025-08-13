@@ -1,13 +1,28 @@
 package com.koriit.positioner.android.localization
 
 import com.koriit.positioner.android.lidar.LidarMeasurement
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.cos
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withContext
+import org.jetbrains.kotlinx.multik.api.*
+import org.jetbrains.kotlinx.multik.ndarray.data.*
+import org.jetbrains.kotlinx.multik.ndarray.operations.*
 
 /**
  * Estimate sensor pose relative to a floor plan using an occupancy grid.
- * This performs a brute force search over orientation, scale and translation
- * and picks the combination with the most measurements hitting occupied cells.
+ *
+ * The search iterates over orientation, scale and translation. The expensive
+ * evaluation of each orientation is parallelised across a dedicated dispatcher
+ * sized to the number of available CPU cores. Basic multi-resolution search and
+ * early pruning keep the total combinations manageable.
  */
 object OccupancyPoseEstimator {
     data class Estimate(
@@ -16,64 +31,180 @@ object OccupancyPoseEstimator {
         val position: Pair<Float, Float>,
     )
 
-    fun estimate(
+    /**
+     * Result of pose estimation containing the best [Estimate] found and the
+     * number of candidate combinations evaluated.
+     */
+    data class EstimateResult(
+        val estimate: Estimate?,
+        val combinations: Int,
+    )
+
+    private val dispatcher =
+        Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
+            .asCoroutineDispatcher()
+
+    private val SIN_TABLE = FloatArray(360) { angle ->
+        sin(Math.toRadians(angle.toDouble())).toFloat()
+    }
+    private val COS_TABLE = FloatArray(360) { angle ->
+        cos(Math.toRadians(angle.toDouble())).toFloat()
+    }
+
+    /**
+     * Perform brute-force search using parallel coroutines.
+     *
+     * Measurement rotation and scaling are vectorized with Multik to exploit
+     * CPU SIMD instructions.
+     */
+    suspend fun estimate(
         measurements: List<LidarMeasurement>,
         grid: OccupancyGrid,
         orientationStep: Int = 5,
         scaleRange: ClosedFloatingPointRange<Float> = 0.8f..1.2f,
         scaleStep: Float = 0.05f,
-    ): Estimate? {
-        if (measurements.isEmpty()) return null
-        var bestScore = -1
-        var bestOrientation = 0
-        var bestScale = 1f
-        var bestX = 0f
-        var bestY = 0f
+    ): EstimateResult = withContext(dispatcher) {
+        if (measurements.isEmpty()) return@withContext EstimateResult(null, 0)
+
+        val count = measurements.size
+        val sinArr = FloatArray(count)
+        val cosArr = FloatArray(count)
+        val distArr = FloatArray(count)
+        for (i in 0 until count) {
+            val m = measurements[i]
+            val deg = ((m.angle.toInt() % 360) + 360) % 360
+            sinArr[i] = SIN_TABLE[deg]
+            cosArr[i] = COS_TABLE[deg]
+            distArr[i] = m.distanceMm / 1000f
+        }
+        val sinNd: NDArray<Float, D1> = mk.ndarray(sinArr.toList(), intArrayOf(count))
+        val cosNd: NDArray<Float, D1> = mk.ndarray(cosArr.toList(), intArrayOf(count))
+        val distNd: NDArray<Float, D1> = mk.ndarray(distArr.toList(), intArrayOf(count))
 
         val gridMaxX = grid.originX + grid.width * grid.cellSize
         val gridMaxY = grid.originY + grid.height * grid.cellSize
 
-        var orient = 0
-        while (orient < 360) {
-            val angleRad = Math.toRadians(orient.toDouble())
-            val cosA = cos(angleRad).toFloat()
-            val sinA = sin(angleRad).toFloat()
-            var scale = scaleRange.start
-            while (scale <= scaleRange.endInclusive + 1e-6f) {
-                val transformed = measurements.map { m ->
-                    val r = m.distanceMm / 1000f * scale
-                    val mRad = Math.toRadians(m.angle.toDouble())
-                    val x = sin(mRad).toFloat() * r
-                    val y = cos(mRad).toFloat() * r
-                    val rx = x * cosA - y * sinA
-                    val ry = x * sinA + y * cosA
-                    rx to ry
-                }
-
-                var y = grid.originY
-                while (y <= gridMaxY) {
-                    var x = grid.originX
-                    while (x <= gridMaxX) {
-                        var score = 0
-                        for ((px, py) in transformed) {
-                            if (grid.isOccupied(px + x, py + y)) score++
-                        }
-                        if (score > bestScore) {
-                            bestScore = score
-                            bestOrientation = orient
-                            bestScale = scale
-                            bestX = x
-                            bestY = y
-                        }
-                        x += grid.cellSize
-                    }
-                    y += grid.cellSize
-                }
-                scale += scaleStep
-            }
-            orient += orientationStep
+        val orientations = (0 until 360 step orientationStep).toList()
+        val orientationTrig = orientations.map { orient ->
+            orient to (COS_TABLE[orient] to SIN_TABLE[orient])
         }
-        if (bestScore <= 0) return null
-        return Estimate(bestOrientation.toFloat(), bestScale, bestX to bestY)
+
+        data class OrientationResult(val score: Int, val estimate: Estimate?, val combinations: Int)
+
+        val globalBest = AtomicInteger(-1)
+
+        val results = coroutineScope {
+            orientationTrig.map { (orient, trig) ->
+                async {
+                    val (cosA, sinA) = trig
+                    val xBase = sinNd * cosA - cosNd * sinA
+                    val yBase = sinNd * sinA + cosNd * cosA
+
+                    var localBestScore = -1
+                    var localBestEstimate: Estimate? = null
+                    var localCombinations = 0
+
+                    var scale = scaleRange.start
+                    while (scale <= scaleRange.endInclusive + 1e-6f) {
+                        val scaledDist = distNd * scale
+                        val xsNd = xBase * scaledDist
+                        val ysNd = yBase * scaledDist
+                        val xs = FloatArray(count) { i: Int -> xsNd[i] }
+                        val ys = FloatArray(count) { i: Int -> ysNd[i] }
+                        val search = searchTranslation(xs, ys, grid, gridMaxX, gridMaxY, globalBest)
+                        localCombinations += search.combinations
+                        if (search.score > localBestScore) {
+                            localBestScore = search.score
+                            localBestEstimate = Estimate(orient.toFloat(), scale, search.x to search.y)
+                            if (search.score > globalBest.get()) {
+                                globalBest.updateAndGet { max(it, search.score) }
+                            }
+                        }
+                        scale += scaleStep
+                    }
+                    OrientationResult(localBestScore, localBestEstimate, localCombinations)
+                }
+            }.awaitAll()
+        }
+
+        var bestScore = -1
+        var bestEstimate: Estimate? = null
+        var combinations = 0
+        for (r in results) {
+            combinations += r.combinations
+            if (r.score > bestScore) {
+                bestScore = r.score
+                bestEstimate = r.estimate
+            }
+        }
+        if (bestScore <= 0) EstimateResult(null, combinations)
+        else EstimateResult(bestEstimate, combinations)
+    }
+
+    private data class SearchResult(
+        val x: Float,
+        val y: Float,
+        val score: Int,
+        val combinations: Int,
+    )
+
+    private fun searchTranslation(
+        xs: FloatArray,
+        ys: FloatArray,
+        grid: OccupancyGrid,
+        gridMaxX: Float,
+        gridMaxY: Float,
+        globalBest: AtomicInteger,
+    ): SearchResult {
+        var bestScore = -1
+        var bestX = 0f
+        var bestY = 0f
+        var combinations = 0
+
+        if (xs.size <= globalBest.get()) {
+            return SearchResult(0f, 0f, -1, 0)
+        }
+
+        fun evaluate(step: Float, minX: Float, maxX: Float, minY: Float, maxY: Float) {
+            var y = minY
+            while (y <= maxY) {
+                var x = minX
+                while (x <= maxX) {
+                    combinations++
+                    var score = 0
+                    var remaining = xs.size
+                    val global = globalBest.get()
+                    var i = 0
+                    while (i < xs.size) {
+                        if (grid.isOccupied(xs[i] + x, ys[i] + y)) score++
+                        remaining--
+                        if (score + remaining <= max(bestScore, global)) break
+                        i++
+                    }
+                    if (score > bestScore) {
+                        bestScore = score
+                        bestX = x
+                        bestY = y
+                        if (score > global) {
+                            globalBest.updateAndGet { max(it, score) }
+                        }
+                    }
+                    x += step
+                }
+                y += step
+            }
+        }
+
+        val coarse = grid.cellSize * 4
+        evaluate(coarse, grid.originX, gridMaxX, grid.originY, gridMaxY)
+
+        val minX = max(grid.originX, bestX - coarse)
+        val maxX = min(gridMaxX, bestX + coarse)
+        val minY = max(grid.originY, bestY - coarse)
+        val maxY = min(gridMaxY, bestY + coarse)
+        evaluate(grid.cellSize, minX, maxX, minY, maxY)
+
+        return SearchResult(bestX, bestY, bestScore, combinations)
     }
 }
+
