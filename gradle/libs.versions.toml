@@ -35,6 +35,7 @@ org-json = { module = "org.json:json", version.ref = "json" }
 jts-core = { module = "org.locationtech.jts:jts-core", version.ref = "jts" }
 multik-core = { module = "org.jetbrains.kotlinx:multik-core", version.ref = "multik" }
 multik-default = { module = "org.jetbrains.kotlinx:multik-default", version.ref = "multik" }
+multik-kotlin = { module = "org.jetbrains.kotlinx:multik-kotlin", version.ref = "multik" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradle" }

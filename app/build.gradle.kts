@@ -55,6 +55,7 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
+
 }
 
 dependencies {
@@ -72,7 +73,7 @@ dependencies {
     implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.jts.core)
     implementation(libs.multik.core)
-    implementation(libs.multik.default)
+    implementation(libs.multik.kotlin)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)
