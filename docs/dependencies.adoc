@@ -49,8 +49,8 @@ This project uses a small set of libraries. The table below explains why each de
 |Provides a full implementation of `JSONObject` for unit tests.
 |JTS Topology Suite
 |Provides robust geometric calculations like polygon intersections and centroids for the position estimation logic.
-|Multik
-|Performs SIMD-optimized array math for rotating and scaling lidar measurements during pose estimation.
+|Multik Kotlin engine
+|Performs SIMD-optimized array math for rotating and scaling lidar measurements during pose estimation without bundling desktop-specific native libraries.
 |Firebase Crashlytics
 |Collects crash reports for real user sessions.
 |===
