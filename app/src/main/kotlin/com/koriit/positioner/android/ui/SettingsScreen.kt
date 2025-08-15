@@ -20,6 +20,7 @@ import com.koriit.positioner.android.viewmodel.LidarViewModel
 fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val autoScale by vm.autoScale.collectAsState()
     val showLogs by vm.showLogs.collectAsState()
+    val filterPoseInput by vm.filterPoseInput.collectAsState()
     val bufferSize by vm.bufferSize.collectAsState()
     val flushInterval by vm.flushIntervalMs.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
@@ -36,6 +37,10 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = showLogs, onCheckedChange = { vm.showLogs.value = it })
             Text("Show logs")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = filterPoseInput, onCheckedChange = { vm.filterPoseInput.value = it })
+            Text("Filter pose input")
         }
         Text("Flush interval: ${flushInterval.toInt()} ms")
         SliderWithActions(

@@ -1,0 +1,3 @@
+== Pose input filtering
+
+Enable **Filter pose input** in the settings panel to apply measurement filtering before computing pose estimates. This reduces noise in the estimator. Disable it to run pose estimation on raw lidar measurements.

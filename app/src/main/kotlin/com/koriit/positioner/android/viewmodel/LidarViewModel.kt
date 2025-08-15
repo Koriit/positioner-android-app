@@ -45,6 +45,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val rotation = MutableStateFlow(0)
     val autoScale = MutableStateFlow(true)
     val showLogs = MutableStateFlow(false)
+    val filterPoseInput = MutableStateFlow(true)
     val bufferSize = MutableStateFlow(DEFAULT_BUFFER_SIZE)
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(DEFAULT_CONFIDENCE_THRESHOLD)
@@ -257,14 +258,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         val now = System.currentTimeMillis()
                         if (now - lastFlush >= flushIntervalMs.value.toLong()) {
                             lastFlush = now
-                            _measurements.value = MeasurementFilter.apply(
-                                buffer.toList(),
+                            val raw = buffer.toList()
+                            val filtered = MeasurementFilter.apply(
+                                raw,
                                 confidenceThreshold.value.toInt(),
                                 minDistance.value,
                                 isolationDistance.value,
                                 isolationMinNeighbours.value,
                             )
-                            updateTransform(_measurements.value)
+                            _measurements.value = filtered
+                            val poseInput = if (filterPoseInput.value) filtered else raw
+                            updateTransform(poseInput)
                         }
                         if (now - lastSecond >= 1000) {
                             measurementsPerSecond.value = count
@@ -337,14 +341,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 val pos = m.timestamp.toEpochMilliseconds() - firstMs
                 if (pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
                     lastFlushPos = pos
-                    _measurements.value = MeasurementFilter.apply(
-                        buffer.toList(),
+                    val raw = buffer.toList()
+                    val filtered = MeasurementFilter.apply(
+                        raw,
                         confidenceThreshold.value.toInt(),
                         minDistance.value,
                         isolationDistance.value,
                         isolationMinNeighbours.value,
                     )
-                    updateTransform(_measurements.value)
+                    _measurements.value = filtered
+                    val poseInput = if (filterPoseInput.value) filtered else raw
+                    updateTransform(poseInput)
                 }
                 if (pos - lastSecondPos >= 1000) {
                     measurementsPerSecond.value = count
@@ -367,14 +374,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 if (delayMs > 0) delay(delayMs) else continue
             }
             // Flush remaining data so the final frame appears
-            _measurements.value = MeasurementFilter.apply(
-                buffer.toList(),
+            val raw = buffer.toList()
+            val filtered = MeasurementFilter.apply(
+                raw,
                 confidenceThreshold.value.toInt(),
                 minDistance.value,
                 isolationDistance.value,
                 isolationMinNeighbours.value,
             )
-            updateTransform(_measurements.value)
+            _measurements.value = filtered
+            val poseInput = if (filterPoseInput.value) filtered else raw
+            updateTransform(poseInput)
             // Mark playback finished so UI values like measurements per second
             // reset once the dataset ends.
             withContext(Dispatchers.Main) {
