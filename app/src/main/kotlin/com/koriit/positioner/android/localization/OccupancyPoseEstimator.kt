@@ -7,6 +7,7 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
+import kotlin.math.roundToInt
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -44,11 +45,12 @@ object OccupancyPoseEstimator {
         Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
             .asCoroutineDispatcher()
 
-    private val SIN_TABLE = FloatArray(360) { angle ->
-        sin(Math.toRadians(angle.toDouble())).toFloat()
+    // Precomputed sine and cosine values at 0.1° resolution
+    private val SIN_TABLE = FloatArray(3600) { angle ->
+        sin(Math.toRadians(angle / 10.0)).toFloat()
     }
-    private val COS_TABLE = FloatArray(360) { angle ->
-        cos(Math.toRadians(angle.toDouble())).toFloat()
+    private val COS_TABLE = FloatArray(3600) { angle ->
+        cos(Math.toRadians(angle / 10.0)).toFloat()
     }
 
     /**
@@ -72,7 +74,7 @@ object OccupancyPoseEstimator {
         val distArr = FloatArray(count)
         for (i in 0 until count) {
             val m = measurements[i]
-            val deg = ((m.angle.toInt() % 360) + 360) % 360
+            val deg = (((m.angle * 10).roundToInt() % 3600) + 3600) % 3600
             sinArr[i] = SIN_TABLE[deg]
             cosArr[i] = COS_TABLE[deg]
             distArr[i] = m.distanceMm / 1000f
@@ -86,7 +88,7 @@ object OccupancyPoseEstimator {
 
         val orientations = (0 until 360 step orientationStep).toList()
         val orientationTrig = orientations.map { orient ->
-            orient to (COS_TABLE[orient] to SIN_TABLE[orient])
+            orient to (COS_TABLE[orient * 10] to SIN_TABLE[orient * 10])
         }
 
         data class OrientationResult(val score: Int, val estimate: Estimate?, val combinations: Int)
