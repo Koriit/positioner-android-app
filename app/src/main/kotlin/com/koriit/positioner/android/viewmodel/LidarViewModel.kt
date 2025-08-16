@@ -118,6 +118,57 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
     fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
 
+    /**
+     * Export current settings to the given [uri] as a JSON file.
+     */
+    fun exportSettings(uri: Uri, context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val settings = LidarSettings(
+                autoScale = autoScale.value,
+                showLogs = showLogs.value,
+                filterPoseInput = filterPoseInput.value,
+                bufferSize = bufferSize.value,
+                flushIntervalMs = flushIntervalMs.value,
+                confidenceThreshold = confidenceThreshold.value,
+                gradientMin = gradientMin.value,
+                minDistance = minDistance.value,
+                isolationDistance = isolationDistance.value,
+                isolationMinNeighbours = isolationMinNeighbours.value,
+                poseMissPenalty = poseMissPenalty.value,
+            )
+            context.contentResolver.openOutputStream(uri)?.use { out ->
+                val json = Json.encodeToString(settings)
+                out.write(json.toByteArray())
+            }
+        }
+    }
+
+    /**
+     * Import settings from the JSON file at the given [uri].
+     */
+    fun importSettings(uri: Uri, context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val settings = context.contentResolver.openInputStream(uri)?.use { input ->
+                Json.decodeFromStream<LidarSettings>(input)
+            }
+            settings?.let {
+                withContext(Dispatchers.Main) {
+                    autoScale.value = it.autoScale
+                    showLogs.value = it.showLogs
+                    filterPoseInput.value = it.filterPoseInput
+                    bufferSize.value = it.bufferSize
+                    flushIntervalMs.value = it.flushIntervalMs
+                    confidenceThreshold.value = it.confidenceThreshold
+                    gradientMin.value = it.gradientMin
+                    minDistance.value = it.minDistance
+                    isolationDistance.value = it.isolationDistance
+                    isolationMinNeighbours.value = it.isolationMinNeighbours
+                    poseMissPenalty.value = it.poseMissPenalty
+                }
+            }
+        }
+    }
+
     private suspend fun updateTransform(measurements: List<LidarMeasurement>) {
         val grid = occupancyGrid ?: return
         val start = System.nanoTime()

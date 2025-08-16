@@ -1,0 +1,3 @@
+= Settings import and export
+
+The settings panel now includes buttons to save the current configuration to a JSON file or load values from one. This allows sharing or restoring application preferences.
