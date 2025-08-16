@@ -39,6 +39,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_MIN_DISTANCE = 0.5f
         const val DEFAULT_ISOLATION_DISTANCE = 0.75f
         const val DEFAULT_MIN_NEIGHBOURS = 2
+        const val DEFAULT_POSE_MISS_PENALTY = 0f
     }
 
     val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
@@ -53,6 +54,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val minDistance = MutableStateFlow(DEFAULT_MIN_DISTANCE) // metres
     val isolationDistance = MutableStateFlow(DEFAULT_ISOLATION_DISTANCE) // metres
     val isolationMinNeighbours = MutableStateFlow(DEFAULT_MIN_NEIGHBOURS)
+    val poseMissPenalty = MutableStateFlow(DEFAULT_POSE_MISS_PENALTY)
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -60,6 +62,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val poseCombinationsPerSecond = MutableStateFlow(0f)
     /** Time in milliseconds to compute last pose estimate */
     val poseEstimateMs = MutableStateFlow(0L)
+    /** Score of the most recent pose estimate */
+    val poseScore = MutableStateFlow(0)
+    /** Average score of the last 50 pose estimates */
+    val poseScoreAverage = MutableStateFlow(0f)
 
     val replayMode = MutableStateFlow(false)
     val playing = MutableStateFlow(false)
@@ -82,6 +88,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val userPosition = MutableStateFlow(0f to 0f)
 
     private var occupancyGrid: OccupancyGrid? = null
+    private val lastPoseScores = ArrayDeque<Int>()
 
     init {
         startLiveReading()
@@ -109,15 +116,26 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetIsolationDistance() { isolationDistance.value = DEFAULT_ISOLATION_DISTANCE }
     fun resetIsolationMinNeighbours() { isolationMinNeighbours.value = DEFAULT_MIN_NEIGHBOURS }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
+    fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
 
     private suspend fun updateTransform(measurements: List<LidarMeasurement>) {
         val grid = occupancyGrid ?: return
         val start = System.nanoTime()
-        val result = OccupancyPoseEstimator.estimate(measurements, grid)
+        val result = OccupancyPoseEstimator.estimate(
+            measurements,
+            grid,
+            missPenalty = poseMissPenalty.value.toInt(),
+        )
         val durationNs = System.nanoTime() - start
         poseEstimateMs.value = durationNs / 1_000_000
         poseCombinationsPerSecond.value =
             if (durationNs > 0) result.combinations * 1_000_000_000f / durationNs else 0f
+        poseScore.value = result.score
+        if (result.score >= 0) {
+            lastPoseScores.addLast(result.score)
+            if (lastPoseScores.size > 50) lastPoseScores.removeFirst()
+            poseScoreAverage.value = lastPoseScores.average().toFloat()
+        }
         result.estimate?.let { estimate ->
             measurementOrientation.value = estimate.orientation
             planScale.value = estimate.scale

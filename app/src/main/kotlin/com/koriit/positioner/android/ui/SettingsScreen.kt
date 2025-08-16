@@ -28,6 +28,7 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val minDistance by vm.minDistance.collectAsState()
     val isolationDistance by vm.isolationDistance.collectAsState()
     val isolationMinNeighbours by vm.isolationMinNeighbours.collectAsState()
+    val poseMissPenalty by vm.poseMissPenalty.collectAsState()
 
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -90,6 +91,13 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
             onValueChange = { vm.bufferSize.value = it.toInt() },
             valueRange = 100f..1000f,
             onReset = { vm.resetBufferSize() }
+        )
+        Text("Pose miss penalty: ${poseMissPenalty.toInt()}")
+        SliderWithActions(
+            value = poseMissPenalty,
+            onValueChange = { vm.poseMissPenalty.value = it },
+            valueRange = 0f..5f,
+            onReset = { vm.resetPoseMissPenalty() }
         )
     }
 }
