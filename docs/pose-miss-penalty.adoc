@@ -1,0 +1,3 @@
+== Pose miss penalty
+
+Adjust how strongly pose estimation penalizes measurements that fall outside the floor plan. Higher values reduce the pose score when readings hit empty space, which can help mitigate obstructions. The default of 0 applies no penalty.

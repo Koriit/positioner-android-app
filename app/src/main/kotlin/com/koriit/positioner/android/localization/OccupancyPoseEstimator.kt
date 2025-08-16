@@ -39,6 +39,7 @@ object OccupancyPoseEstimator {
     data class EstimateResult(
         val estimate: Estimate?,
         val combinations: Int,
+        val score: Int,
     )
 
     private val dispatcher =
@@ -58,6 +59,10 @@ object OccupancyPoseEstimator {
      *
      * Measurement rotation and scaling are vectorized with Multik to exploit
      * CPU SIMD instructions.
+     *
+     * @param missPenalty penalty subtracted for each measurement that does not
+     * align with an occupied cell. Higher values increase sensitivity to
+     * obstructions.
      */
     suspend fun estimate(
         measurements: List<LidarMeasurement>,
@@ -65,8 +70,9 @@ object OccupancyPoseEstimator {
         orientationStep: Int = 5,
         scaleRange: ClosedFloatingPointRange<Float> = 0.8f..1.2f,
         scaleStep: Float = 0.05f,
+        missPenalty: Int = 0,
     ): EstimateResult = withContext(dispatcher) {
-        if (measurements.isEmpty()) return@withContext EstimateResult(null, 0)
+        if (measurements.isEmpty()) return@withContext EstimateResult(null, 0, -1)
 
         val count = measurements.size
         val sinArr = FloatArray(count)
@@ -113,7 +119,15 @@ object OccupancyPoseEstimator {
                         val ysNd = yBase * scaledDist
                         val xs = FloatArray(count) { i: Int -> xsNd[i] }
                         val ys = FloatArray(count) { i: Int -> ysNd[i] }
-                        val search = searchTranslation(xs, ys, grid, gridMaxX, gridMaxY, globalBest)
+                        val search = searchTranslation(
+                            xs,
+                            ys,
+                            grid,
+                            gridMaxX,
+                            gridMaxY,
+                            globalBest,
+                            missPenalty,
+                        )
                         localCombinations += search.combinations
                         if (search.score > localBestScore) {
                             localBestScore = search.score
@@ -139,8 +153,8 @@ object OccupancyPoseEstimator {
                 bestEstimate = r.estimate
             }
         }
-        if (bestScore <= 0) EstimateResult(null, combinations)
-        else EstimateResult(bestEstimate, combinations)
+        if (bestScore <= 0) EstimateResult(null, combinations, bestScore)
+        else EstimateResult(bestEstimate, combinations, bestScore)
     }
 
     private data class SearchResult(
@@ -157,6 +171,7 @@ object OccupancyPoseEstimator {
         gridMaxX: Float,
         gridMaxY: Float,
         globalBest: AtomicInteger,
+        missPenalty: Int,
     ): SearchResult {
         var bestScore = -1
         var bestX = 0f
@@ -173,16 +188,19 @@ object OccupancyPoseEstimator {
                 var x = minX
                 while (x <= maxX) {
                     combinations++
-                    var score = 0
+                    var hits = 0
+                    var misses = 0
                     var remaining = xs.size
                     val global = globalBest.get()
                     var i = 0
                     while (i < xs.size) {
-                        if (grid.isOccupied(xs[i] + x, ys[i] + y)) score++
+                        if (grid.isOccupied(xs[i] + x, ys[i] + y)) hits++ else misses++
                         remaining--
-                        if (score + remaining <= max(bestScore, global)) break
+                        val potential = hits + remaining - missPenalty * misses
+                        if (potential <= max(bestScore, global)) break
                         i++
                     }
+                    val score = hits - missPenalty * misses
                     if (score > bestScore) {
                         bestScore = score
                         bestX = x
