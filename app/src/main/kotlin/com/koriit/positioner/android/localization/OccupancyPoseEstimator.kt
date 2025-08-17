@@ -178,7 +178,11 @@ object OccupancyPoseEstimator {
         var bestY = 0f
         var combinations = 0
 
-        if (xs.size <= globalBest.get()) {
+        // Skip evaluating this orientation only if it is impossible to beat the
+        // current global best score. Using '<' rather than '<=' allows other
+        // orientations with a potentially equal score to be considered so the
+        // earliest matching orientation is chosen deterministically.
+        if (xs.size < globalBest.get()) {
             return SearchResult(0f, 0f, -1, 0)
         }
 

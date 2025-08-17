@@ -26,7 +26,10 @@ class OccupancyGrid private constructor(
     private val root: Node,
 ) {
     /**
-     * Returns `true` if the given point lies inside the floor-plan polygon.
+     * Returns `true` if the given point lies on a wall of the floor plan.
+     *
+     * The grid models walls as a narrow band around the plan's polygon. Points
+     * well inside the floor plan are treated as unoccupied space.
      */
     fun isOccupied(x: Float, y: Float): Boolean {
         if (x < originX || x >= originX + width * cellSize ||
@@ -73,9 +76,14 @@ class OccupancyGrid private constructor(
             val coords = points.map { (x, y) -> Coordinate(x.toDouble(), y.toDouble()) } +
                 listOf(Coordinate(points.first().first.toDouble(), points.first().second.toDouble()))
             val polygon: Polygon = geomFactory.createPolygon(coords.toTypedArray())
-            val prepared: PreparedGeometry = PreparedGeometryFactory().create(polygon)
 
-            val env = polygon.envelopeInternal
+            // Treat only the plan boundary as occupied by buffering the polygon outline.
+            // This models walls with approximately [cellSize] thickness while leaving
+            // interior space empty.
+            val boundary = polygon.boundary.buffer(cellSize.toDouble() / 2)
+            val prepared: PreparedGeometry = PreparedGeometryFactory().create(boundary)
+
+            val env = boundary.envelopeInternal
             val width = ceil(env.width / cellSize).toInt() + 1
             val height = ceil(env.height / cellSize).toInt() + 1
             val originX = env.minX.toFloat()
