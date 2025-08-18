@@ -39,6 +39,27 @@ class OccupancyGrid private constructor(
         return isOccupied(root, originX, originY, treeSize, x, y)
     }
 
+    data class Cell(val x: Float, val y: Float, val size: Float)
+
+    fun occupiedCells(): List<Cell> {
+        val result = mutableListOf<Cell>()
+        fun traverse(node: Node, x0: Float, y0: Float, size: Float) {
+            when (node) {
+                Node.Empty -> {}
+                Node.Full -> result.add(Cell(x0, y0, size))
+                is Node.Quad -> {
+                    val half = size / 2
+                    traverse(node.nw, x0, y0 + half, half)
+                    traverse(node.ne, x0 + half, y0 + half, half)
+                    traverse(node.sw, x0, y0, half)
+                    traverse(node.se, x0 + half, y0, half)
+                }
+            }
+        }
+        traverse(root, originX, originY, treeSize)
+        return result
+    }
+
     private fun isOccupied(node: Node, x0: Float, y0: Float, size: Float, x: Float, y: Float): Boolean {
         return when (node) {
             Node.Empty -> false

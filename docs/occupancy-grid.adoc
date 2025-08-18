@@ -1,0 +1,7 @@
+== Occupancy grid
+
+The settings panel includes an option to overlay the occupancy grid on the LiDAR canvas. When **Show occupancy grid** is enabled, wall cells from the quadtree map are drawn on top of the plot so the relationship between measurements and the map can be inspected.
+
+=== Cell size
+
+Use the **Grid cell size** slider to control how coarse the grid is. Smaller values provide finer detail but require more processing while larger values are faster but less precise.

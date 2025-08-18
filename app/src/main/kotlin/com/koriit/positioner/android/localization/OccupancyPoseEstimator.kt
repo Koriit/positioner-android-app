@@ -71,6 +71,7 @@ object OccupancyPoseEstimator {
         scaleRange: ClosedFloatingPointRange<Float> = 0.8f..1.2f,
         scaleStep: Float = 0.05f,
         missPenalty: Int = 0,
+        initial: Estimate? = null,
     ): EstimateResult = withContext(dispatcher) {
         if (measurements.isEmpty()) return@withContext EstimateResult(null, 0, -1)
 
@@ -92,7 +93,8 @@ object OccupancyPoseEstimator {
         val gridMaxX = grid.originX + grid.width * grid.cellSize
         val gridMaxY = grid.originY + grid.height * grid.cellSize
 
-        val orientations = (0 until 360 step orientationStep).toList()
+        val orientations = initial?.let { orientAround(it.orientation.toInt(), 45, orientationStep) }
+            ?: (0 until 360 step orientationStep).toList()
         val orientationTrig = orientations.map { orient ->
             orient to (COS_TABLE[orient * 10] to SIN_TABLE[orient * 10])
         }
@@ -155,6 +157,17 @@ object OccupancyPoseEstimator {
         }
         if (bestScore <= 0) EstimateResult(null, combinations, bestScore)
         else EstimateResult(bestEstimate, combinations, bestScore)
+    }
+
+    private fun orientAround(center: Int, halfSpan: Int, step: Int): List<Int> {
+        val result = mutableListOf<Int>()
+        var angle = center - halfSpan
+        while (angle <= center + halfSpan) {
+            val norm = (angle % 360 + 360) % 360
+            result.add(norm)
+            angle += step
+        }
+        return result
     }
 
     private data class SearchResult(

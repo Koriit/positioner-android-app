@@ -18,4 +18,7 @@ data class LidarSettings(
     val isolationDistance: Float = LidarViewModel.DEFAULT_ISOLATION_DISTANCE,
     val isolationMinNeighbours: Int = LidarViewModel.DEFAULT_MIN_NEIGHBOURS,
     val poseMissPenalty: Float = LidarViewModel.DEFAULT_POSE_MISS_PENALTY,
+    val showOccupancyGrid: Boolean = false,
+    val gridCellSize: Float = LidarViewModel.DEFAULT_GRID_CELL_SIZE,
+    val useLastPose: Boolean = false,
 )
