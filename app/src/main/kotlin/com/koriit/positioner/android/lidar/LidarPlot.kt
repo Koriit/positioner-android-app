@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -12,6 +13,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import com.koriit.positioner.android.localization.OccupancyGrid
 import kotlin.math.min
 
 /**
@@ -32,6 +34,8 @@ fun LidarPlot(
     measurementOrientation: Float = 0f,
     planScale: Float = 1f,
     userPosition: Pair<Float, Float>? = null,
+    occupancyGrid: OccupancyGrid? = null,
+    showOccupancyGrid: Boolean = false,
 ) {
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
@@ -81,6 +85,18 @@ fun LidarPlot(
         }
 
         translate(left = center.x, top = center.y) {
+            if (showOccupancyGrid && occupancyGrid != null) {
+                occupancyGrid.occupiedCells().forEach { cell ->
+                    var x0 = (cell.x - ux) * planScale
+                    var y0 = (cell.y - uy) * planScale
+                    val cs = cell.size * planScale
+                    drawRect(
+                        color = Color.LightGray.copy(alpha = 0.5f),
+                        topLeft = Offset(x0 * scale, -(y0 + cs) * scale),
+                        size = Size(cs * scale, cs * scale)
+                    )
+                }
+            }
             floorPlan.forEach { polygon ->
                 for (i in 0 until polygon.size - 1) {
                     var (x1, y1) = polygon[i]

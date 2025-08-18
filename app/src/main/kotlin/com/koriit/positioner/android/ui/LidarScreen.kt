@@ -67,6 +67,8 @@ fun LidarScreen(vm: LidarViewModel) {
     val measurementOrientation by vm.measurementOrientation.collectAsState()
     val planScale by vm.planScale.collectAsState()
     val userPosition by vm.userPosition.collectAsState()
+    val showGrid by vm.showOccupancyGrid.collectAsState()
+    val occupancyGrid by vm.occupancyGridState.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -123,6 +125,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     measurementOrientation = measurementOrientation,
                     planScale = planScale,
                     userPosition = userPosition,
+                    occupancyGrid = occupancyGrid,
+                    showOccupancyGrid = showGrid,
                 )
                 if (loading) {
                     Column(
@@ -216,6 +220,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     measurementOrientation = measurementOrientation,
                     planScale = planScale,
                     userPosition = userPosition,
+                    occupancyGrid = occupancyGrid,
+                    showOccupancyGrid = showGrid,
                 )
                 if (loading) {
                     Column(

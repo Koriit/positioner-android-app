@@ -40,6 +40,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_ISOLATION_DISTANCE = 0.75f
         const val DEFAULT_MIN_NEIGHBOURS = 2
         const val DEFAULT_POSE_MISS_PENALTY = 0f
+        const val DEFAULT_GRID_CELL_SIZE = 0.1f
     }
 
     val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
@@ -55,6 +56,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val isolationDistance = MutableStateFlow(DEFAULT_ISOLATION_DISTANCE) // metres
     val isolationMinNeighbours = MutableStateFlow(DEFAULT_MIN_NEIGHBOURS)
     val poseMissPenalty = MutableStateFlow(DEFAULT_POSE_MISS_PENALTY)
+    val showOccupancyGrid = MutableStateFlow(false)
+    val gridCellSize = MutableStateFlow(DEFAULT_GRID_CELL_SIZE)
+    val useLastPose = MutableStateFlow(false)
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -88,6 +92,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val userPosition = MutableStateFlow(0f to 0f)
 
     private var occupancyGrid: OccupancyGrid? = null
+    val occupancyGridState = MutableStateFlow<OccupancyGrid?>(null)
+    private var lastEstimate: OccupancyPoseEstimator.Estimate? = null
     private val lastPoseScores = ArrayDeque<Int>()
 
     init {
@@ -117,6 +123,18 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetIsolationMinNeighbours() { isolationMinNeighbours.value = DEFAULT_MIN_NEIGHBOURS }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
     fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
+    fun resetGridCellSize() { gridCellSize.value = DEFAULT_GRID_CELL_SIZE; rebuildGrid() }
+
+    fun updateGridCellSize(size: Float) {
+        gridCellSize.value = size
+        rebuildGrid()
+    }
+
+    private fun rebuildGrid() {
+        val plan = floorPlan.value.firstOrNull() ?: return
+        occupancyGrid = OccupancyGrid.fromPolygon(plan, gridCellSize.value)
+        occupancyGridState.value = occupancyGrid
+    }
 
     /**
      * Export current settings to the given [uri] as a JSON file.
@@ -135,6 +153,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 isolationDistance = isolationDistance.value,
                 isolationMinNeighbours = isolationMinNeighbours.value,
                 poseMissPenalty = poseMissPenalty.value,
+                showOccupancyGrid = showOccupancyGrid.value,
+                gridCellSize = gridCellSize.value,
+                useLastPose = useLastPose.value,
             )
             context.contentResolver.openOutputStream(uri)?.use { out ->
                 val json = Json.encodeToString(settings)
@@ -164,6 +185,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     isolationDistance.value = it.isolationDistance
                     isolationMinNeighbours.value = it.isolationMinNeighbours
                     poseMissPenalty.value = it.poseMissPenalty
+                    showOccupancyGrid.value = it.showOccupancyGrid
+                    gridCellSize.value = it.gridCellSize
+                    useLastPose.value = it.useLastPose
+                    rebuildGrid()
                 }
             }
         }
@@ -176,6 +201,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             measurements,
             grid,
             missPenalty = poseMissPenalty.value.toInt(),
+            initial = if (useLastPose.value) lastEstimate else null,
         )
         val durationNs = System.nanoTime() - start
         poseEstimateMs.value = durationNs / 1_000_000
@@ -191,6 +217,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             measurementOrientation.value = estimate.orientation
             planScale.value = estimate.scale
             userPosition.value = PositionFilter.update(estimate.position)
+            lastEstimate = estimate
         }
     }
 
@@ -280,7 +307,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             withContext(Dispatchers.Main) {
                 floorPlan.value = plans
                 rotation.value = 0
-                occupancyGrid = plans.firstOrNull()?.let { OccupancyGrid.fromPolygon(it) }
+                occupancyGrid = plans.firstOrNull()?.let { OccupancyGrid.fromPolygon(it, gridCellSize.value) }
+                occupancyGridState.value = occupancyGrid
+                lastEstimate = null
                 PositionFilter.reset()
             }
         }

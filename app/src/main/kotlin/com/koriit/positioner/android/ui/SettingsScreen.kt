@@ -33,6 +33,9 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val isolationDistance by vm.isolationDistance.collectAsState()
     val isolationMinNeighbours by vm.isolationMinNeighbours.collectAsState()
     val poseMissPenalty by vm.poseMissPenalty.collectAsState()
+    val showGrid by vm.showOccupancyGrid.collectAsState()
+    val gridCellSize by vm.gridCellSize.collectAsState()
+    val useLastPose by vm.useLastPose.collectAsState()
 
     val context = LocalContext.current
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -58,6 +61,14 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = filterPoseInput, onCheckedChange = { vm.filterPoseInput.value = it })
             Text("Filter pose input")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = showGrid, onCheckedChange = { vm.showOccupancyGrid.value = it })
+            Text("Show occupancy grid")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = useLastPose, onCheckedChange = { vm.useLastPose.value = it })
+            Text("Use last pose")
         }
         Text("Flush interval: ${flushInterval.toInt()} ms")
         SliderWithActions(
@@ -100,6 +111,13 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
             onValueChange = { vm.isolationMinNeighbours.value = it.toInt() },
             valueRange = 0f..10f,
             onReset = { vm.resetIsolationMinNeighbours() }
+        )
+        Text("Grid cell size: ${"%.2f".format(gridCellSize)} m")
+        SliderWithActions(
+            value = gridCellSize,
+            onValueChange = { vm.updateGridCellSize(it) },
+            valueRange = 0.05f..0.5f,
+            onReset = { vm.resetGridCellSize() }
         )
         Text("Buffer size: $bufferSize")
         SliderWithActions(
