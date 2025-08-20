@@ -1,13 +1,9 @@
 package com.koriit.positioner.android.ui
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -16,7 +12,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 
@@ -37,19 +32,7 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val gridCellSize by vm.gridCellSize.collectAsState()
     val useLastPose by vm.useLastPose.collectAsState()
 
-    val context = LocalContext.current
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        uri?.let { vm.exportSettings(it, context) }
-    }
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { vm.importSettings(it, context) }
-    }
-
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(onClick = { exportLauncher.launch("settings.json") }) { Text("Export Settings") }
-            Button(onClick = { importLauncher.launch(arrayOf("application/json")) }) { Text("Import Settings") }
-        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = autoScale, onCheckedChange = { vm.autoScale.value = it })
             Text("Auto scale")
