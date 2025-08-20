@@ -6,14 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import android.content.res.Configuration
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -80,6 +73,12 @@ fun LidarScreen(vm: LidarViewModel) {
     val floorPlanLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) vm.loadFloorPlan(uris, context)
     }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        uri?.let { vm.exportSettings(it, context) }
+    }
+    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let { vm.importSettings(it, context) }
+    }
 
     var showSettings by remember { mutableStateOf(false) }
 
@@ -98,6 +97,8 @@ fun LidarScreen(vm: LidarViewModel) {
             val replaying by vm.replayMode.collectAsState()
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
+                Button(onClick = { importLauncher.launch(arrayOf("application/json")) }) { Text("Import") }
+                Button(onClick = { exportLauncher.launch("settings.json") }) { Text("Export") }
             }
             if (showSettings) {
                 SettingsPanel(
@@ -146,12 +147,18 @@ fun LidarScreen(vm: LidarViewModel) {
                     }
                 }
             }
-            Text("Measurements/s: $mps")
-            Text("Rotations/s: ${"%.2f".format(rps)}")
-            Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
-            Text("Pose time ms: $poseMs")
-            Text("Pose score: $poseScore")
-            Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Measurements/s: $mps")
+                    Text("Rotations/s: ${"%.2f".format(rps)}")
+                    Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Pose time ms: $poseMs")
+                    Text("Pose score: $poseScore")
+                    Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Button(
                     onClick = { vm.rotate90() },
@@ -249,13 +256,13 @@ fun LidarScreen(vm: LidarViewModel) {
             ) {
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(onClick = { showSettings = !showSettings }) { Text("Settings") }
+                    Button(onClick = { importLauncher.launch(arrayOf("application/json")) }) { Text("Import") }
+                    Button(onClick = { exportLauncher.launch("settings.json") }) { Text("Export") }
                 }
                 if (showSettings) {
                     SettingsPanel(
                         vm,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -301,12 +308,18 @@ fun LidarScreen(vm: LidarViewModel) {
             if (replaying) {
                 ReplayControls(vm)
             }
-                Text("Measurements/s: $mps")
-                Text("Rotations/s: ${"%.2f".format(rps)}")
-                Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
-                Text("Pose time ms: $poseMs")
-                Text("Pose score: $poseScore")
-                Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Measurements/s: $mps")
+                        Text("Rotations/s: ${"%.2f".format(rps)}")
+                        Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Pose time ms: $poseMs")
+                        Text("Pose score: $poseScore")
+                        Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                    }
+                }
                 if (showLogs) {
                     LogView(logs, modifier = Modifier.height(160.dp))
                 }
