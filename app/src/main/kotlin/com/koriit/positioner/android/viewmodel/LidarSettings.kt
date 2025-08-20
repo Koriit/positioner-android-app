@@ -1,5 +1,6 @@
 package com.koriit.positioner.android.viewmodel
 
+import com.koriit.positioner.android.localization.PoseAlgorithm
 import kotlinx.serialization.Serializable
 
 /**
@@ -21,4 +22,5 @@ data class LidarSettings(
     val showOccupancyGrid: Boolean = false,
     val gridCellSize: Float = LidarViewModel.DEFAULT_GRID_CELL_SIZE,
     val useLastPose: Boolean = false,
+    val poseAlgorithm: PoseAlgorithm = PoseAlgorithm.OCCUPANCY,
 )
