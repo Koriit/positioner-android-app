@@ -13,6 +13,8 @@ import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
 import com.koriit.positioner.android.localization.OccupancyGrid
 import com.koriit.positioner.android.localization.OccupancyPoseEstimator
+import com.koriit.positioner.android.localization.ParticlePoseEstimator
+import com.koriit.positioner.android.localization.PoseAlgorithm
 import com.koriit.positioner.android.localization.PositionFilter
 import com.koriit.positioner.android.logging.AppLog
 import com.google.firebase.ktx.Firebase
@@ -59,6 +61,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val showOccupancyGrid = MutableStateFlow(false)
     val gridCellSize = MutableStateFlow(DEFAULT_GRID_CELL_SIZE)
     val useLastPose = MutableStateFlow(false)
+    val poseAlgorithm = MutableStateFlow(PoseAlgorithm.OCCUPANCY)
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -156,6 +159,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 showOccupancyGrid = showOccupancyGrid.value,
                 gridCellSize = gridCellSize.value,
                 useLastPose = useLastPose.value,
+                poseAlgorithm = poseAlgorithm.value,
             )
             context.contentResolver.openOutputStream(uri)?.use { out ->
                 val json = Json.encodeToString(settings)
@@ -188,6 +192,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     showOccupancyGrid.value = it.showOccupancyGrid
                     gridCellSize.value = it.gridCellSize
                     useLastPose.value = it.useLastPose
+                    poseAlgorithm.value = it.poseAlgorithm
                     rebuildGrid()
                 }
             }
@@ -197,12 +202,19 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private suspend fun updateTransform(measurements: List<LidarMeasurement>) {
         val grid = occupancyGrid ?: return
         val start = System.nanoTime()
-        val result = OccupancyPoseEstimator.estimate(
-            measurements,
-            grid,
-            missPenalty = poseMissPenalty.value.toInt(),
-            initial = if (useLastPose.value) lastEstimate else null,
-        )
+        val result = when (poseAlgorithm.value) {
+            PoseAlgorithm.OCCUPANCY -> OccupancyPoseEstimator.estimate(
+                measurements,
+                grid,
+                missPenalty = poseMissPenalty.value.toInt(),
+                initial = if (useLastPose.value) lastEstimate else null,
+            )
+            PoseAlgorithm.PARTICLE -> ParticlePoseEstimator.estimate(
+                measurements,
+                grid,
+                missPenalty = poseMissPenalty.value.toInt(),
+            )
+        }
         val durationNs = System.nanoTime() - start
         poseEstimateMs.value = durationNs / 1_000_000
         poseCombinationsPerSecond.value =

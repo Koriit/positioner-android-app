@@ -5,16 +5,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.koriit.positioner.android.localization.PoseAlgorithm
 import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val autoScale by vm.autoScale.collectAsState()
@@ -31,6 +42,7 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val showGrid by vm.showOccupancyGrid.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
     val useLastPose by vm.useLastPose.collectAsState()
+    val poseAlgorithm by vm.poseAlgorithm.collectAsState()
 
     Column(modifier = modifier.verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -52,6 +64,28 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = useLastPose, onCheckedChange = { vm.useLastPose.value = it })
             Text("Use last pose")
+        }
+        var algoExpanded by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(expanded = algoExpanded, onExpandedChange = { algoExpanded = !algoExpanded }) {
+            TextField(
+                value = poseAlgorithm.displayName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Pose algorithm") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = algoExpanded) },
+                modifier = Modifier.menuAnchor()
+            )
+            DropdownMenu(expanded = algoExpanded, onDismissRequest = { algoExpanded = false }) {
+                PoseAlgorithm.values().forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.displayName) },
+                        onClick = {
+                            vm.poseAlgorithm.value = option
+                            algoExpanded = false
+                        }
+                    )
+                }
+            }
         }
         Text("Flush interval: ${flushInterval.toInt()} ms")
         SliderWithActions(

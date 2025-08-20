@@ -1,0 +1,3 @@
+== Pose algorithm
+
+Choose between different pose estimation strategies. The default **Occupancy grid** performs a brute-force search, while the **Particle filter** explores pose space probabilistically and can yield faster results on large maps.
