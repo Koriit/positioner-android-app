@@ -4,6 +4,7 @@ import com.koriit.positioner.android.lidar.LidarMeasurement
 import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class ParticlePoseEstimatorTest {
@@ -31,6 +32,9 @@ class ParticlePoseEstimatorTest {
         val est = result.estimate!!
         assertEquals(0f, est.position.first, 1f)
         assertEquals(0f, est.position.second, 1f)
+        val diff30 = ((est.orientation - 30f + 540f) % 360f) - 180f
+        val diff150 = ((est.orientation - 150f + 540f) % 360f) - 180f
+        assertTrue(kotlin.math.abs(diff30) < 10f || kotlin.math.abs(diff150) < 10f)
     }
 }
 
