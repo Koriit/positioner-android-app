@@ -8,11 +8,12 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Estimate sensor pose using a basic particle filter.
+ * Estimate sensor pose using a particle filter with low-variance resampling.
  *
- * This implementation explores translation and orientation while keeping scale
- * fixed at 1.0. It is intentionally simple yet provides a useful alternative to
- * the brute-force [OccupancyPoseEstimator].
+ * The filter explores translation and orientation while keeping scale fixed at
+ * 1.0. Precomputed measurement vectors keep scoring inexpensive and the
+ * algorithm provides a lighter-weight alternative to the brute-force
+ * [OccupancyPoseEstimator].
  */
 object ParticlePoseEstimator {
     private data class Particle(
@@ -34,12 +35,23 @@ object ParticlePoseEstimator {
     suspend fun estimate(
         measurements: List<LidarMeasurement>,
         grid: OccupancyGrid,
-        particles: Int = 500,
-        iterations: Int = 10,
+        particles: Int = 200,
+        iterations: Int = 5,
         missPenalty: Int = 0,
         random: Random = Random.Default,
     ): OccupancyPoseEstimator.EstimateResult = withContext(Dispatchers.Default) {
         if (measurements.isEmpty()) return@withContext OccupancyPoseEstimator.EstimateResult(null, 0, -1)
+
+        val count = measurements.size
+        val dx = FloatArray(count)
+        val dy = FloatArray(count)
+        for (i in 0 until count) {
+            val m = measurements[i]
+            val dist = m.distanceMm / 1000f
+            val angleRad = Math.toRadians(m.angle.toDouble())
+            dx[i] = sin(angleRad).toFloat() * dist
+            dy[i] = cos(angleRad).toFloat() * dist
+        }
 
         val width = grid.width * grid.cellSize
         val height = grid.height * grid.cellSize
@@ -55,28 +67,31 @@ object ParticlePoseEstimator {
         repeat(iterations) {
             var totalWeight = 0f
             for (p in particleList) {
-                val score = scorePose(measurements, grid, p.x, p.y, p.orientation, missPenalty)
+                val orientRad = Math.toRadians(p.orientation.toDouble())
+                val cosA = cos(orientRad).toFloat()
+                val sinA = sin(orientRad).toFloat()
+                val score = scorePose(dx, dy, grid, p.x, p.y, cosA, sinA, missPenalty)
                 p.weight = score.coerceAtLeast(0).toFloat() + 1e-6f
                 totalWeight += p.weight
             }
             particleList.forEach { it.weight /= totalWeight }
 
-            val cumulative = FloatArray(particles)
-            var acc = 0f
-            for (i in particleList.indices) {
-                acc += particleList[i].weight
-                cumulative[i] = acc
-            }
-            val newParticles = MutableList(particles) {
-                val r = random.nextFloat()
-                val idx = cumulative.indexOfFirst { it >= r }.coerceAtLeast(0)
-                val src = particleList[idx]
-                Particle(
-                    x = src.x + random.nextFloat() * 0.1f - 0.05f,
-                    y = src.y + random.nextFloat() * 0.1f - 0.05f,
-                    orientation = (src.orientation + random.nextFloat() * 10f - 5f + 360f) % 360f,
-                    weight = 1f / particles,
-                )
+            // Low variance resampling
+            val newParticles = MutableList(particles) { Particle(0f, 0f, 0f, 1f / particles) }
+            val step = 1f / particles
+            var r = random.nextFloat() * step
+            var c = particleList[0].weight
+            var i = 0
+            for (m in 0 until particles) {
+                val u = r + m * step
+                while (u > c && i < particleList.lastIndex) {
+                    i++
+                    c += particleList[i].weight
+                }
+                val src = particleList[i]
+                newParticles[m].x = src.x + random.nextFloat() * grid.cellSize - grid.cellSize / 2
+                newParticles[m].y = src.y + random.nextFloat() * grid.cellSize - grid.cellSize / 2
+                newParticles[m].orientation = (src.orientation + random.nextFloat() * 4f - 2f + 360f) % 360f
             }
             particleList.clear()
             particleList.addAll(newParticles)
@@ -85,7 +100,10 @@ object ParticlePoseEstimator {
         var best: Particle? = null
         var bestScore = -1
         for (p in particleList) {
-            val score = scorePose(measurements, grid, p.x, p.y, p.orientation, missPenalty)
+            val orientRad = Math.toRadians(p.orientation.toDouble())
+            val cosA = cos(orientRad).toFloat()
+            val sinA = sin(orientRad).toFloat()
+            val score = scorePose(dx, dy, grid, p.x, p.y, cosA, sinA, missPenalty)
             if (score > bestScore) {
                 bestScore = score
                 best = p
@@ -96,24 +114,19 @@ object ParticlePoseEstimator {
     }
 
     private fun scorePose(
-        measurements: List<LidarMeasurement>,
+        dx: FloatArray,
+        dy: FloatArray,
         grid: OccupancyGrid,
         x: Float,
         y: Float,
-        orientation: Float,
+        cosA: Float,
+        sinA: Float,
         missPenalty: Int,
     ): Int {
         var score = 0
-        val orientRad = Math.toRadians(orientation.toDouble())
-        val cosA = cos(orientRad).toFloat()
-        val sinA = sin(orientRad).toFloat()
-        for (m in measurements) {
-            val dist = m.distanceMm / 1000f
-            val angleRad = Math.toRadians(m.angle.toDouble())
-            val dx = sin(angleRad).toFloat() * dist
-            val dy = cos(angleRad).toFloat() * dist
-            val worldX = x + cosA * dx - sinA * dy
-            val worldY = y + sinA * dx + cosA * dy
+        for (i in dx.indices) {
+            val worldX = x + cosA * dx[i] - sinA * dy[i]
+            val worldY = y + sinA * dx[i] + cosA * dy[i]
             if (grid.isOccupied(worldX, worldY)) score++ else score -= missPenalty
         }
         return score
