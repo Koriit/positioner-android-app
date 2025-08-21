@@ -1,0 +1,3 @@
+== Occupancy scale step
+
+Defines the increment between tested scale factors in the occupancy grid search. Finer steps improve precision but require more computation.

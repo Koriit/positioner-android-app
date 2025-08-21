@@ -1,0 +1,3 @@
+== Particle iterations
+
+Number of refinement passes performed by the particle filter. Additional iterations can improve accuracy at the expense of speed.

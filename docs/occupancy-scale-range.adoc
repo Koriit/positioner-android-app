@@ -1,0 +1,3 @@
+== Occupancy scale range
+
+Sets minimum and maximum scale factors explored by the occupancy grid search. Adjust to cover expected plan scaling variations.
