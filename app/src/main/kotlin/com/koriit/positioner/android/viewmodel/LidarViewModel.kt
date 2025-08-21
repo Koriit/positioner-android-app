@@ -43,6 +43,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_MIN_NEIGHBOURS = 2
         const val DEFAULT_POSE_MISS_PENALTY = 0f
         const val DEFAULT_GRID_CELL_SIZE = 0.1f
+        const val DEFAULT_OCCUPANCY_ORIENTATION_STEP = 5
+        const val DEFAULT_OCCUPANCY_SCALE_MIN = 0.8f
+        const val DEFAULT_OCCUPANCY_SCALE_MAX = 1.2f
+        const val DEFAULT_OCCUPANCY_SCALE_STEP = 0.05f
+        const val DEFAULT_PARTICLE_COUNT = 200
+        const val DEFAULT_PARTICLE_ITERATIONS = 5
     }
 
     val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
@@ -62,6 +68,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val gridCellSize = MutableStateFlow(DEFAULT_GRID_CELL_SIZE)
     val useLastPose = MutableStateFlow(false)
     val poseAlgorithm = MutableStateFlow(PoseAlgorithm.OCCUPANCY)
+    val occupancyOrientationStep = MutableStateFlow(DEFAULT_OCCUPANCY_ORIENTATION_STEP)
+    val occupancyScaleMin = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_MIN)
+    val occupancyScaleMax = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_MAX)
+    val occupancyScaleStep = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_STEP)
+    val particleCount = MutableStateFlow(DEFAULT_PARTICLE_COUNT)
+    val particleIterations = MutableStateFlow(DEFAULT_PARTICLE_ITERATIONS)
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
@@ -127,6 +139,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
     fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
     fun resetGridCellSize() { gridCellSize.value = DEFAULT_GRID_CELL_SIZE; rebuildGrid() }
+    fun resetOccupancyOrientationStep() { occupancyOrientationStep.value = DEFAULT_OCCUPANCY_ORIENTATION_STEP }
+    fun resetOccupancyScaleMin() { occupancyScaleMin.value = DEFAULT_OCCUPANCY_SCALE_MIN }
+    fun resetOccupancyScaleMax() { occupancyScaleMax.value = DEFAULT_OCCUPANCY_SCALE_MAX }
+    fun resetOccupancyScaleStep() { occupancyScaleStep.value = DEFAULT_OCCUPANCY_SCALE_STEP }
+    fun resetParticleCount() { particleCount.value = DEFAULT_PARTICLE_COUNT }
+    fun resetParticleIterations() { particleIterations.value = DEFAULT_PARTICLE_ITERATIONS }
 
     fun updateGridCellSize(size: Float) {
         gridCellSize.value = size
@@ -160,6 +178,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 gridCellSize = gridCellSize.value,
                 useLastPose = useLastPose.value,
                 poseAlgorithm = poseAlgorithm.value,
+                occupancyOrientationStep = occupancyOrientationStep.value,
+                occupancyScaleMin = occupancyScaleMin.value,
+                occupancyScaleMax = occupancyScaleMax.value,
+                occupancyScaleStep = occupancyScaleStep.value,
+                particleCount = particleCount.value,
+                particleIterations = particleIterations.value,
             )
             context.contentResolver.openOutputStream(uri)?.use { out ->
                 val json = Json.encodeToString(settings)
@@ -193,6 +217,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     gridCellSize.value = it.gridCellSize
                     useLastPose.value = it.useLastPose
                     poseAlgorithm.value = it.poseAlgorithm
+                    occupancyOrientationStep.value = it.occupancyOrientationStep
+                    occupancyScaleMin.value = it.occupancyScaleMin
+                    occupancyScaleMax.value = it.occupancyScaleMax
+                    occupancyScaleStep.value = it.occupancyScaleStep
+                    particleCount.value = it.particleCount
+                    particleIterations.value = it.particleIterations
                     rebuildGrid()
                 }
             }
@@ -206,12 +236,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             PoseAlgorithm.OCCUPANCY -> OccupancyPoseEstimator.estimate(
                 measurements,
                 grid,
+                orientationStep = occupancyOrientationStep.value,
+                scaleRange = occupancyScaleMin.value..occupancyScaleMax.value,
+                scaleStep = occupancyScaleStep.value,
                 missPenalty = poseMissPenalty.value.toInt(),
                 initial = if (useLastPose.value) lastEstimate else null,
             )
             PoseAlgorithm.PARTICLE -> ParticlePoseEstimator.estimate(
                 measurements,
                 grid,
+                particles = particleCount.value,
+                iterations = particleIterations.value,
                 missPenalty = poseMissPenalty.value.toInt(),
             )
         }

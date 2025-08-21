@@ -1,0 +1,3 @@
+== Particle count
+
+Specifies how many particles are used in the particle filter. More particles improve convergence but increase computation time.

@@ -1,0 +1,3 @@
+== Occupancy orientation step
+
+Controls the angular resolution used when scanning orientations during occupancy grid search. Smaller steps improve accuracy at the cost of more computations.
