@@ -93,7 +93,7 @@ object OccupancyPoseEstimator {
         val gridMaxX = grid.originX + grid.width * grid.cellSize
         val gridMaxY = grid.originY + grid.height * grid.cellSize
 
-        val orientations = initial?.let { orientAround(it.orientation.toInt(), 45, orientationStep) }
+        val orientations = initial?.let { orientAround(it.orientation.toInt(), 90, orientationStep) }
             ?: (0 until 360 step orientationStep).toList()
         val orientationTrig = orientations.map { orient ->
             orient to (COS_TABLE[orient * 10] to SIN_TABLE[orient * 10])

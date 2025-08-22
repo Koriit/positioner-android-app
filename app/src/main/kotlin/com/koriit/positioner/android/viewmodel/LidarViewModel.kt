@@ -66,7 +66,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val poseMissPenalty = MutableStateFlow(DEFAULT_POSE_MISS_PENALTY)
     val showOccupancyGrid = MutableStateFlow(false)
     val gridCellSize = MutableStateFlow(DEFAULT_GRID_CELL_SIZE)
-    val useLastPose = MutableStateFlow(false)
+    val useLastPose = MutableStateFlow(true)
     val poseAlgorithm = MutableStateFlow(PoseAlgorithm.OCCUPANCY)
     val occupancyOrientationStep = MutableStateFlow(DEFAULT_OCCUPANCY_ORIENTATION_STEP)
     val occupancyScaleMin = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_MIN)
@@ -77,6 +77,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val usbConnected = MutableStateFlow(false)
     val measurementsPerSecond = MutableStateFlow(0)
     val rotationsPerSecond = MutableStateFlow(0f)
+    val filteredMeasurements = MutableStateFlow(0)
+    val filteredPercentage = MutableStateFlow(0f)
     /** Average number of pose combinations evaluated per second */
     val poseCombinationsPerSecond = MutableStateFlow(0f)
     /** Time in milliseconds to compute last pose estimate */
@@ -380,6 +382,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 if (source == null) {
                     usbConnected.value = false
                     _measurements.value = emptyList()
+                    filteredMeasurements.value = 0
+                    filteredPercentage.value = 0f
                     delay(1000)
                     continue
                 }
@@ -411,6 +415,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                                 isolationDistance.value,
                                 isolationMinNeighbours.value,
                             )
+                            val removed = raw.size - filtered.size
+                            filteredMeasurements.value = removed
+                            filteredPercentage.value = if (raw.isNotEmpty())
+                                removed * 100f / raw.size else 0f
                             _measurements.value = filtered
                             val poseInput = if (filterPoseInput.value) filtered else raw
                             updateTransform(poseInput)
@@ -426,6 +434,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 } catch (e: Exception) {
                     usbConnected.value = false
                     _measurements.value = emptyList()
+                    filteredMeasurements.value = 0
+                    filteredPercentage.value = 0f
                     AppLog.d("LidarViewModel", "Measurement loop failed", e)
                     Firebase.crashlytics.recordException(e)
                     delay(1000)
@@ -494,6 +504,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         isolationDistance.value,
                         isolationMinNeighbours.value,
                     )
+                    val removed = raw.size - filtered.size
+                    filteredMeasurements.value = removed
+                    filteredPercentage.value = if (raw.isNotEmpty())
+                        removed * 100f / raw.size else 0f
                     _measurements.value = filtered
                     val poseInput = if (filterPoseInput.value) filtered else raw
                     updateTransform(poseInput)
@@ -527,6 +541,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 isolationDistance.value,
                 isolationMinNeighbours.value,
             )
+            val removed = raw.size - filtered.size
+            filteredMeasurements.value = removed
+            filteredPercentage.value = if (raw.isNotEmpty())
+                removed * 100f / raw.size else 0f
             _measurements.value = filtered
             val poseInput = if (filterPoseInput.value) filtered else raw
             updateTransform(poseInput)
@@ -536,6 +554,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 playing.value = false
                 rotationsPerSecond.value = 0f
                 measurementsPerSecond.value = 0
+                filteredMeasurements.value = 0
+                filteredPercentage.value = 0f
             }
         }
     }
