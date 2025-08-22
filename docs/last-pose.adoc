@@ -1,3 +1,3 @@
 == Last pose reuse
 
-Pose estimation can be biased towards the most recent successful result. Enabling **Use last pose** restricts the search to orientations near the previous estimate, which reduces jitter and speeds up calculations when measurements remain stable.
+Pose estimation can be biased towards the most recent successful result. Enabling **Use last pose** restricts the search to orientations within ±90° of the previous estimate, which reduces jitter and speeds up calculations when measurements remain stable.

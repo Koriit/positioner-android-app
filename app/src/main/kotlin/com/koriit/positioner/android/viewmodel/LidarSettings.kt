@@ -21,7 +21,7 @@ data class LidarSettings(
     val poseMissPenalty: Float = LidarViewModel.DEFAULT_POSE_MISS_PENALTY,
     val showOccupancyGrid: Boolean = false,
     val gridCellSize: Float = LidarViewModel.DEFAULT_GRID_CELL_SIZE,
-    val useLastPose: Boolean = false,
+    val useLastPose: Boolean = true,
     val poseAlgorithm: PoseAlgorithm = PoseAlgorithm.OCCUPANCY,
     val occupancyOrientationStep: Int = LidarViewModel.DEFAULT_OCCUPANCY_ORIENTATION_STEP,
     val occupancyScaleMin: Float = LidarViewModel.DEFAULT_OCCUPANCY_SCALE_MIN,

@@ -138,7 +138,14 @@ fun LidarPlot(
         }
 
         // Draw confidence indicators
-        drawConfidenceIndicators(confidenceStats, size, confidenceThreshold, measurements.size)
+        drawConfidenceIndicators(
+            confidenceStats,
+            size,
+            confidenceThreshold,
+            measurements.size,
+            floorPlan.isNotEmpty(),
+            userPosition,
+        )
     }
 }
 
@@ -146,8 +153,10 @@ private fun DrawScope.drawConfidenceIndicators(
     confidenceStats: Triple<Int, Int, Double>,
     size: androidx.compose.ui.geometry.Size,
     confidenceThreshold: Int,
-    totalMeasurementsCount: Int
-) {
+    totalMeasurementsCount: Int,
+    hasFloorPlan: Boolean,
+    userPosition: Pair<Float, Float>?,
+ ) {
     val (minConf, maxConf, avgConf) = confidenceStats
 
     drawIntoCanvas { canvas ->
@@ -246,22 +255,44 @@ private fun DrawScope.drawConfidenceIndicators(
             paint
         )
 
-        // Confidence threshold (bottom-right)
+        // Confidence threshold or position (bottom-right)
         val thresholdWidth = 150.dp.toPx()
-        canvas.nativeCanvas.drawRect(
-            size.width - textPadding - thresholdWidth,
-            size.height - textPadding - 40.dp.toPx(),
-            size.width - textPadding,
-            size.height - textPadding,
-            bgPaint
-        )
-
-        canvas.nativeCanvas.drawText(
-            "Threshold: $confidenceThreshold",
-            size.width - textPadding - thresholdWidth + 5.dp.toPx(),
-            size.height - textPadding - 20.dp.toPx(),
-            paint
-        )
+        if (hasFloorPlan && userPosition != null) {
+            val (ux, uy) = userPosition
+            canvas.nativeCanvas.drawRect(
+                size.width - textPadding - thresholdWidth,
+                size.height - textPadding - 60.dp.toPx(),
+                size.width - textPadding,
+                size.height - textPadding,
+                bgPaint
+            )
+            canvas.nativeCanvas.drawText(
+                "X: ${"%.2f".format(ux)}",
+                size.width - textPadding - thresholdWidth + 5.dp.toPx(),
+                size.height - textPadding - 40.dp.toPx(),
+                paint
+            )
+            canvas.nativeCanvas.drawText(
+                "Y: ${"%.2f".format(uy)}",
+                size.width - textPadding - thresholdWidth + 5.dp.toPx(),
+                size.height - textPadding - 20.dp.toPx(),
+                paint
+            )
+        } else {
+            canvas.nativeCanvas.drawRect(
+                size.width - textPadding - thresholdWidth,
+                size.height - textPadding - 40.dp.toPx(),
+                size.width - textPadding,
+                size.height - textPadding,
+                bgPaint
+            )
+            canvas.nativeCanvas.drawText(
+                "Threshold: $confidenceThreshold",
+                size.width - textPadding - thresholdWidth + 5.dp.toPx(),
+                size.height - textPadding - 20.dp.toPx(),
+                paint
+            )
+        }
     }
 }
 
