@@ -18,22 +18,24 @@ fun SliderWithActions(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     onReset: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Row(modifier = modifier.fillMaxWidth()) {
-        IconButton(onClick = { onValueChange(valueRange.start) }) {
+        IconButton(onClick = { onValueChange(valueRange.start) }, enabled = enabled) {
             Icon(Icons.Filled.FirstPage, contentDescription = "Min")
         }
         Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,
+            enabled = enabled,
             modifier = Modifier.weight(1f)
         )
-        IconButton(onClick = onReset) {
+        IconButton(onClick = onReset, enabled = enabled) {
             Icon(Icons.Filled.Refresh, contentDescription = "Reset")
         }
-        IconButton(onClick = { onValueChange(valueRange.endInclusive) }) {
+        IconButton(onClick = { onValueChange(valueRange.endInclusive) }, enabled = enabled) {
             Icon(Icons.Filled.LastPage, contentDescription = "Max")
         }
     }

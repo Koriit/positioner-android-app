@@ -13,6 +13,8 @@ data class LidarSettings(
     val filterPoseInput: Boolean = true,
     val bufferSize: Int = LidarViewModel.DEFAULT_BUFFER_SIZE,
     val flushIntervalMs: Float = LidarViewModel.DEFAULT_FLUSH_INTERVAL_MS,
+    /** Automatically match buffer size and flush interval to full rotations */
+    val matchRotation: Boolean = false,
     val confidenceThreshold: Float = LidarViewModel.DEFAULT_CONFIDENCE_THRESHOLD,
     val gradientMin: Float = LidarViewModel.DEFAULT_GRADIENT_MIN,
     val minDistance: Float = LidarViewModel.DEFAULT_MIN_DISTANCE,
