@@ -57,6 +57,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val showLogs = MutableStateFlow(false)
     val filterPoseInput = MutableStateFlow(true)
     val bufferSize = MutableStateFlow(DEFAULT_BUFFER_SIZE)
+    val matchRotation = MutableStateFlow(false)
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(DEFAULT_CONFIDENCE_THRESHOLD)
     val gradientMin = MutableStateFlow(DEFAULT_GRADIENT_MIN)
@@ -170,6 +171,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 filterPoseInput = filterPoseInput.value,
                 bufferSize = bufferSize.value,
                 flushIntervalMs = flushIntervalMs.value,
+                matchRotation = matchRotation.value,
                 confidenceThreshold = confidenceThreshold.value,
                 gradientMin = gradientMin.value,
                 minDistance = minDistance.value,
@@ -209,6 +211,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     filterPoseInput.value = it.filterPoseInput
                     bufferSize.value = it.bufferSize
                     flushIntervalMs.value = it.flushIntervalMs
+                    matchRotation.value = it.matchRotation
                     confidenceThreshold.value = it.confidenceThreshold
                     gradientMin.value = it.gradientMin
                     minDistance.value = it.minDistance
@@ -364,6 +367,56 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    /**
+     * Flush the measurement [buffer] by applying filters, updating observed
+     * flows and optionally adjusting automatic buffer settings.
+     *
+     * @param buffer data to process
+     * @param updateAuto update buffer size and interval when `true`
+     * @param durationMs optional time to use as new flush interval
+     */
+    private suspend fun flushBuffer(
+        buffer: ArrayDeque<LidarMeasurement>,
+        updateAuto: Boolean = false,
+        durationMs: Float? = null,
+    ) {
+        val raw = buffer.toList()
+        val filtered = MeasurementFilter.apply(
+            raw,
+            confidenceThreshold.value.toInt(),
+            minDistance.value,
+            isolationDistance.value,
+            isolationMinNeighbours.value,
+        )
+        val removed = raw.size - filtered.size
+        filteredMeasurements.value = removed
+        filteredPercentage.value = if (raw.isNotEmpty()) removed * 100f / raw.size else 0f
+        _measurements.value = filtered
+        val poseInput = if (filterPoseInput.value) filtered else raw
+        updateTransform(poseInput)
+        if (updateAuto) {
+            bufferSize.value = raw.size
+            durationMs?.let { flushIntervalMs.value = it }
+        }
+        buffer.clear()
+    }
+
+    /**
+     * Ensure the [buffer] matches the latest configured size and return the
+     * effective capacity.
+     */
+    private fun ensureBufferSize(
+        buffer: ArrayDeque<LidarMeasurement>,
+        currentSize: Int,
+    ): Int {
+        return if (bufferSize.value != currentSize) {
+            buffer.clear()
+            bufferSize.value
+        } else {
+            currentSize
+        }
+    }
+
     private fun startLiveReading() {
         readJob?.cancel()
         // Run the long running read loop on a background dispatcher so heavy
@@ -377,6 +430,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             var angleAccum = 0f
             var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
+            var rotationStart = System.currentTimeMillis()
             while (true) {
                 val source = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
                 if (source == null) {
@@ -390,10 +444,21 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 usbConnected.value = true
                 try {
                     source.measurements().flowOn(Dispatchers.IO).collect { m ->
-                        if (bufferSize.value != currentBufferSize) {
-                            currentBufferSize = bufferSize.value
-                            buffer.clear()
+                        val now = System.currentTimeMillis()
+                        if (matchRotation.value) {
+                            lastAngle?.let { prev ->
+                                if (m.angle < prev) {
+                                    flushBuffer(
+                                        buffer,
+                                        updateAuto = true,
+                                        durationMs = (now - rotationStart).toFloat(),
+                                    )
+                                    currentBufferSize = bufferSize.value
+                                    rotationStart = now
+                                }
+                            }
                         }
+                        currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
                         if (buffer.size >= currentBufferSize) buffer.removeFirst()
                         buffer.addLast(m)
                         if (recording.value) sessionData.add(m)
@@ -404,24 +469,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         }
                         lastAngle = m.angle
                         count++
-                        val now = System.currentTimeMillis()
-                        if (now - lastFlush >= flushIntervalMs.value.toLong()) {
+                        if (!matchRotation.value && now - lastFlush >= flushIntervalMs.value.toLong()) {
                             lastFlush = now
-                            val raw = buffer.toList()
-                            val filtered = MeasurementFilter.apply(
-                                raw,
-                                confidenceThreshold.value.toInt(),
-                                minDistance.value,
-                                isolationDistance.value,
-                                isolationMinNeighbours.value,
-                            )
-                            val removed = raw.size - filtered.size
-                            filteredMeasurements.value = removed
-                            filteredPercentage.value = if (raw.isNotEmpty())
-                                removed * 100f / raw.size else 0f
-                            _measurements.value = filtered
-                            val poseInput = if (filterPoseInput.value) filtered else raw
-                            updateTransform(poseInput)
+                            flushBuffer(buffer)
                         }
                         if (now - lastSecond >= 1000) {
                             measurementsPerSecond.value = count
@@ -464,6 +514,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             var angleAccum = 0f
             var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
+            var rotationStartPos = 0L
             val firstMs = replayData.first().timestamp.toEpochMilliseconds()
             var lastSeek = replayPositionMs.value
             var index = findIndexForPosition(lastSeek)
@@ -479,11 +530,22 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     lastAngle = null
                     lastSeek = desired
                 }
-                if (bufferSize.value != currentBufferSize) {
-                    currentBufferSize = bufferSize.value
-                    buffer.clear()
-                }
                 val m = replayData[index]
+                val pos = m.timestamp.toEpochMilliseconds() - firstMs
+                if (matchRotation.value) {
+                    lastAngle?.let { prev ->
+                        if (m.angle < prev) {
+                            flushBuffer(
+                                buffer,
+                                updateAuto = true,
+                                durationMs = (pos - rotationStartPos).toFloat(),
+                            )
+                            currentBufferSize = bufferSize.value
+                            rotationStartPos = pos
+                        }
+                    }
+                }
+                currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
                 if (buffer.size >= currentBufferSize) buffer.removeFirst()
                 buffer.addLast(m)
                 lastAngle?.let { prev ->
@@ -493,24 +555,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 }
                 lastAngle = m.angle
                 count++
-                val pos = m.timestamp.toEpochMilliseconds() - firstMs
-                if (pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
+                if (!matchRotation.value && pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
                     lastFlushPos = pos
-                    val raw = buffer.toList()
-                    val filtered = MeasurementFilter.apply(
-                        raw,
-                        confidenceThreshold.value.toInt(),
-                        minDistance.value,
-                        isolationDistance.value,
-                        isolationMinNeighbours.value,
-                    )
-                    val removed = raw.size - filtered.size
-                    filteredMeasurements.value = removed
-                    filteredPercentage.value = if (raw.isNotEmpty())
-                        removed * 100f / raw.size else 0f
-                    _measurements.value = filtered
-                    val poseInput = if (filterPoseInput.value) filtered else raw
-                    updateTransform(poseInput)
+                    flushBuffer(buffer)
                 }
                 if (pos - lastSecondPos >= 1000) {
                     measurementsPerSecond.value = count
@@ -533,21 +580,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 if (delayMs > 0) delay(delayMs) else continue
             }
             // Flush remaining data so the final frame appears
-            val raw = buffer.toList()
-            val filtered = MeasurementFilter.apply(
-                raw,
-                confidenceThreshold.value.toInt(),
-                minDistance.value,
-                isolationDistance.value,
-                isolationMinNeighbours.value,
-            )
-            val removed = raw.size - filtered.size
-            filteredMeasurements.value = removed
-            filteredPercentage.value = if (raw.isNotEmpty())
-                removed * 100f / raw.size else 0f
-            _measurements.value = filtered
-            val poseInput = if (filterPoseInput.value) filtered else raw
-            updateTransform(poseInput)
+            flushBuffer(buffer)
             // Mark playback finished so UI values like measurements per second
             // reset once the dataset ends.
             withContext(Dispatchers.Main) {
