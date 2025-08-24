@@ -23,6 +23,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
@@ -103,6 +105,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
+    private var lastBuffer: List<LidarMeasurement> = emptyList()
     val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
 
     val measurementOrientation = MutableStateFlow(0f)
@@ -116,6 +119,27 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     init {
         startLiveReading()
+        // When replay is paused and settings change reapply the last buffer so
+        // the user immediately sees the effect of the new configuration.
+        viewModelScope.launch {
+            merge(
+                confidenceThreshold.map { },
+                minDistance.map { },
+                isolationDistance.map { },
+                isolationMinNeighbours.map { },
+                filterPoseInput.map { },
+                poseMissPenalty.map { },
+                gridCellSize.map { },
+                useLastPose.map { },
+                poseAlgorithm.map { },
+                occupancyOrientationStep.map { },
+                occupancyScaleMin.map { },
+                occupancyScaleMax.map { },
+                occupancyScaleStep.map { },
+                particleCount.map { },
+                particleIterations.map { },
+            ).collect { reapplyCurrentBuffer() }
+        }
     }
 
     /**
@@ -326,6 +350,19 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         if (replayMode.value) startReplay()
     }
 
+    fun stepBuffer(direction: Int) {
+        if (!replayMode.value) return
+        val currentIdx = findIndexForPosition(replayPositionMs.value)
+        val targetIdx = (currentIdx + direction * bufferSize.value)
+            .coerceIn(0, replayData.size - 1)
+        val startIdx = (targetIdx - bufferSize.value + 1).coerceAtLeast(0)
+        val slice = replayData.subList(startIdx, targetIdx + 1)
+        val firstMs = replayData.first().timestamp.toEpochMilliseconds()
+        replayPositionMs.value =
+            replayData[targetIdx].timestamp.toEpochMilliseconds() - firstMs
+        viewModelScope.launch { flushBuffer(ArrayDeque(slice)) }
+    }
+
     /**
      * Seek to the requested timestamp within the loaded replay.
      *
@@ -381,6 +418,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         durationMs: Float? = null,
     ) {
         val raw = buffer.toList()
+        lastBuffer = raw
         val filtered = MeasurementFilter.apply(
             raw,
             confidenceThreshold.value.toInt(),
@@ -399,6 +437,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             durationMs?.let { flushIntervalMs.value = it }
         }
         buffer.clear()
+    }
+
+    private suspend fun reapplyCurrentBuffer() {
+        if (replayMode.value && !playing.value && lastBuffer.isNotEmpty()) {
+            flushBuffer(ArrayDeque(lastBuffer))
+        }
     }
 
     /**
