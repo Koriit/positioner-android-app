@@ -46,6 +46,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_POSE_MISS_PENALTY = 0f
         const val DEFAULT_GRID_CELL_SIZE = 0.1f
         const val DEFAULT_OCCUPANCY_ORIENTATION_STEP = 5
+        const val DEFAULT_OCCUPANCY_ORIENTATION_SPAN = 90
         const val DEFAULT_OCCUPANCY_SCALE_MIN = 0.8f
         const val DEFAULT_OCCUPANCY_SCALE_MAX = 1.2f
         const val DEFAULT_OCCUPANCY_SCALE_STEP = 0.05f
@@ -72,6 +73,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val useLastPose = MutableStateFlow(true)
     val poseAlgorithm = MutableStateFlow(PoseAlgorithm.OCCUPANCY)
     val occupancyOrientationStep = MutableStateFlow(DEFAULT_OCCUPANCY_ORIENTATION_STEP)
+    val occupancyOrientationSpan = MutableStateFlow(DEFAULT_OCCUPANCY_ORIENTATION_SPAN)
     val occupancyScaleMin = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_MIN)
     val occupancyScaleMax = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_MAX)
     val occupancyScaleStep = MutableStateFlow(DEFAULT_OCCUPANCY_SCALE_STEP)
@@ -132,6 +134,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 gridCellSize.map { },
                 useLastPose.map { },
                 poseAlgorithm.map { },
+                occupancyOrientationSpan.map { },
                 occupancyOrientationStep.map { },
                 occupancyScaleMin.map { },
                 occupancyScaleMax.map { },
@@ -166,6 +169,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
     fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
     fun resetGridCellSize() { gridCellSize.value = DEFAULT_GRID_CELL_SIZE; rebuildGrid() }
+    fun resetOccupancyOrientationSpan() { occupancyOrientationSpan.value = DEFAULT_OCCUPANCY_ORIENTATION_SPAN }
     fun resetOccupancyOrientationStep() { occupancyOrientationStep.value = DEFAULT_OCCUPANCY_ORIENTATION_STEP }
     fun resetOccupancyScaleMin() { occupancyScaleMin.value = DEFAULT_OCCUPANCY_SCALE_MIN }
     fun resetOccupancyScaleMax() { occupancyScaleMax.value = DEFAULT_OCCUPANCY_SCALE_MAX }
@@ -206,6 +210,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 gridCellSize = gridCellSize.value,
                 useLastPose = useLastPose.value,
                 poseAlgorithm = poseAlgorithm.value,
+                occupancyOrientationSpan = occupancyOrientationSpan.value,
                 occupancyOrientationStep = occupancyOrientationStep.value,
                 occupancyScaleMin = occupancyScaleMin.value,
                 occupancyScaleMax = occupancyScaleMax.value,
@@ -246,6 +251,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     gridCellSize.value = it.gridCellSize
                     useLastPose.value = it.useLastPose
                     poseAlgorithm.value = it.poseAlgorithm
+                    occupancyOrientationSpan.value = it.occupancyOrientationSpan
                     occupancyOrientationStep.value = it.occupancyOrientationStep
                     occupancyScaleMin.value = it.occupancyScaleMin
                     occupancyScaleMax.value = it.occupancyScaleMax
@@ -266,6 +272,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 measurements,
                 grid,
                 orientationStep = occupancyOrientationStep.value,
+                orientationSpan = occupancyOrientationSpan.value,
                 scaleRange = occupancyScaleMin.value..occupancyScaleMax.value,
                 scaleStep = occupancyScaleStep.value,
                 missPenalty = poseMissPenalty.value.toInt(),

@@ -1,0 +1,3 @@
+== Occupancy orientation span
+
+Defines the half-angle around the previous orientation considered during occupancy grid search. Larger spans increase robustness but require more computations.

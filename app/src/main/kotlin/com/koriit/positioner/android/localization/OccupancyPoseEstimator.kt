@@ -60,6 +60,8 @@ object OccupancyPoseEstimator {
      * Measurement rotation and scaling are vectorized with Multik to exploit
      * CPU SIMD instructions.
      *
+     * @param orientationStep orientation increment in degrees.
+     * @param orientationSpan half angle around [initial] orientation to search.
      * @param missPenalty penalty subtracted for each measurement that does not
      * align with an occupied cell. Higher values increase sensitivity to
      * obstructions.
@@ -68,6 +70,7 @@ object OccupancyPoseEstimator {
         measurements: List<LidarMeasurement>,
         grid: OccupancyGrid,
         orientationStep: Int = 5,
+        orientationSpan: Int = 90,
         scaleRange: ClosedFloatingPointRange<Float> = 0.8f..1.2f,
         scaleStep: Float = 0.05f,
         missPenalty: Int = 0,
@@ -93,7 +96,9 @@ object OccupancyPoseEstimator {
         val gridMaxX = grid.originX + grid.width * grid.cellSize
         val gridMaxY = grid.originY + grid.height * grid.cellSize
 
-        val orientations = initial?.let { orientAround(it.orientation.toInt(), 90, orientationStep) }
+        val orientations = initial?.let {
+            orientAround(it.orientation.toInt(), orientationSpan, orientationStep)
+        }
             ?: (0 until 360 step orientationStep).toList()
         val orientationTrig = orientations.map { orient ->
             orient to (COS_TABLE[orient * 10] to SIN_TABLE[orient * 10])

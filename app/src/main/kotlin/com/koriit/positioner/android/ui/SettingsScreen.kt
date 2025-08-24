@@ -49,6 +49,7 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val useLastPose by vm.useLastPose.collectAsState()
     val poseAlgorithm by vm.poseAlgorithm.collectAsState()
     val occupancyOrientationStep by vm.occupancyOrientationStep.collectAsState()
+    val occupancyOrientationSpan by vm.occupancyOrientationSpan.collectAsState()
     val occupancyScaleMin by vm.occupancyScaleMin.collectAsState()
     val occupancyScaleMax by vm.occupancyScaleMax.collectAsState()
     val occupancyScaleStep by vm.occupancyScaleStep.collectAsState()
@@ -186,6 +187,13 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
                 Divider()
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Occupancy grid", style = MaterialTheme.typography.titleMedium)
+                Text("Orientation span: $occupancyOrientationSpan°")
+                SliderWithActions(
+                    value = occupancyOrientationSpan.toFloat(),
+                    onValueChange = { vm.occupancyOrientationSpan.value = it.toInt() },
+                    valueRange = 0f..180f,
+                    onReset = { vm.resetOccupancyOrientationSpan() }
+                )
                 Text("Orientation step: $occupancyOrientationStep°")
                 SliderWithActions(
                     value = occupancyOrientationStep.toFloat(),
