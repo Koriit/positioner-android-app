@@ -160,6 +160,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     Text("Pose time ms: $poseMs")
                     Text("Pose score: $poseScore")
                     Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                    Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
+                    Text("Scale: ${"%.2f".format(planScale)}")
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -322,6 +324,8 @@ fun LidarScreen(vm: LidarViewModel) {
                         Text("Pose time ms: $poseMs")
                         Text("Pose score: $poseScore")
                         Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                        Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
+                        Text("Scale: ${"%.2f".format(planScale)}")
                     }
                 }
                 if (showLogs) {
