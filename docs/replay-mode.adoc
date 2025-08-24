@@ -1,6 +1,6 @@
 == Replay mode
 
-Use the *Load* button to select a previously saved recording in JSON format. Once loaded, playback controls appear below the plot allowing you to play, pause and seek through the data. Buttons adjust speed or jump forward and backward by one second.
+Use the *Load* button to select a previously saved recording in JSON format. Once loaded, playback controls appear below the plot allowing you to play, pause and seek through the data. Buttons adjust speed or step forward and backward by one buffer at a time.
 
 Press *Exit Replay* to return to live mode. Recording or loading another file is disabled while replay is active.
 

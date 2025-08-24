@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,9 +41,13 @@ fun ReplayControls(vm: LidarViewModel) {
             onReset = { vm.seekTo(0L) }
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = { vm.seekBy(-1000) }) { Text("-1s") }
+            IconButton(onClick = { vm.stepBuffer(-1) }, enabled = !playing) {
+                Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous buffer")
+            }
             Button(onClick = { vm.togglePlay() }) { Text(if (playing) "Pause" else "Play") }
-            Button(onClick = { vm.seekBy(1000) }) { Text("+1s") }
+            IconButton(onClick = { vm.stepBuffer(1) }, enabled = !playing) {
+                Icon(Icons.Filled.SkipNext, contentDescription = "Next buffer")
+            }
             IconButton(onClick = { vm.changeSpeed(0.5f) }) {
                 Icon(Icons.Filled.FastRewind, contentDescription = "Slower")
             }
