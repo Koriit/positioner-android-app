@@ -482,6 +482,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
             var rotationStart = System.currentTimeMillis()
+            var samplesInRotation = 0
             while (true) {
                 val source = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
                 if (source == null) {
@@ -499,18 +500,25 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         if (matchRotation.value) {
                             lastAngle?.let { prev ->
                                 if (m.angle < prev) {
-                                    flushBuffer(
-                                        buffer,
-                                        updateAuto = true,
-                                        durationMs = (now - rotationStart).toFloat(),
-                                    )
+                                    val duration = (now - rotationStart).toFloat()
+                                    val rotationSamples = samplesInRotation
+                                    flushBuffer(buffer)
+                                    bufferSize.value = rotationSamples
+                                    flushIntervalMs.value = duration
                                     currentBufferSize = bufferSize.value
                                     rotationStart = now
+                                    samplesInRotation = 0
                                 }
                             }
+                            samplesInRotation++
+                        } else {
+                            currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
+                            if (buffer.size >= currentBufferSize) buffer.removeFirst()
+                            if (now - lastFlush >= flushIntervalMs.value.toLong()) {
+                                lastFlush = now
+                                flushBuffer(buffer)
+                            }
                         }
-                        currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
-                        if (buffer.size >= currentBufferSize) buffer.removeFirst()
                         buffer.addLast(m)
                         if (recording.value) sessionData.add(m)
                         lastAngle?.let { prev ->
@@ -520,10 +528,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         }
                         lastAngle = m.angle
                         count++
-                        if (!matchRotation.value && now - lastFlush >= flushIntervalMs.value.toLong()) {
-                            lastFlush = now
-                            flushBuffer(buffer)
-                        }
                         if (now - lastSecond >= 1000) {
                             measurementsPerSecond.value = count
                             rotationsPerSecond.value = angleAccum / 360f
@@ -559,16 +563,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         // the loop on a background dispatcher to keep the UI responsive.
         readJob = viewModelScope.launch(Dispatchers.Default) {
             val buffer = ArrayDeque<LidarMeasurement>()
-            var lastFlushPos = 0L
-            var lastSecondPos = 0L
+            val firstMs = replayData.first().timestamp.toEpochMilliseconds()
+            var lastSeek = replayPositionMs.value
+            var index = findIndexForPosition(lastSeek)
+            var lastFlushPos = lastSeek
+            var lastSecondPos = lastSeek
             var count = 0
             var angleAccum = 0f
             var lastAngle: Float? = null
             var currentBufferSize = bufferSize.value
-            var rotationStartPos = 0L
-            val firstMs = replayData.first().timestamp.toEpochMilliseconds()
-            var lastSeek = replayPositionMs.value
-            var index = findIndexForPosition(lastSeek)
+            var rotationStartPos = lastSeek
+            var samplesInRotation = 0
             while (replayMode.value && index < replayData.size) {
                 if (!playing.value) {
                     delay(50)
@@ -580,24 +585,35 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     buffer.clear()
                     lastAngle = null
                     lastSeek = desired
+                    rotationStartPos = desired
+                    lastFlushPos = desired
+                    lastSecondPos = desired
+                    samplesInRotation = 0
                 }
                 val m = replayData[index]
                 val pos = m.timestamp.toEpochMilliseconds() - firstMs
                 if (matchRotation.value) {
                     lastAngle?.let { prev ->
                         if (m.angle < prev) {
-                            flushBuffer(
-                                buffer,
-                                updateAuto = true,
-                                durationMs = (pos - rotationStartPos).toFloat(),
-                            )
+                            val duration = (pos - rotationStartPos).toFloat()
+                            val rotationSamples = samplesInRotation
+                            flushBuffer(buffer)
+                            bufferSize.value = rotationSamples
+                            flushIntervalMs.value = duration
                             currentBufferSize = bufferSize.value
                             rotationStartPos = pos
+                            samplesInRotation = 0
                         }
                     }
+                    samplesInRotation++
+                } else {
+                    currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
+                    if (buffer.size >= currentBufferSize) buffer.removeFirst()
+                    if (pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
+                        lastFlushPos = pos
+                        flushBuffer(buffer)
+                    }
                 }
-                currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
-                if (buffer.size >= currentBufferSize) buffer.removeFirst()
                 buffer.addLast(m)
                 lastAngle?.let { prev ->
                     var diff = m.angle - prev
@@ -606,10 +622,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 }
                 lastAngle = m.angle
                 count++
-                if (!matchRotation.value && pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
-                    lastFlushPos = pos
-                    flushBuffer(buffer)
-                }
                 if (pos - lastSecondPos >= 1000) {
                     measurementsPerSecond.value = count
                     rotationsPerSecond.value = angleAccum / 360f
