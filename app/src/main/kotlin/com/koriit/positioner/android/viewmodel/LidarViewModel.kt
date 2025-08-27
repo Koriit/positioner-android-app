@@ -37,19 +37,19 @@ import kotlinx.serialization.json.decodeFromStream
 class LidarViewModel(private val context: Context) : ViewModel() {
     companion object {
         const val DEFAULT_FLUSH_INTERVAL_MS = 50f
-        const val DEFAULT_BUFFER_SIZE = 480
-        const val DEFAULT_CONFIDENCE_THRESHOLD = 200f
+        const val DEFAULT_BUFFER_SIZE = 456
+        const val DEFAULT_CONFIDENCE_THRESHOLD = 210f
         const val DEFAULT_GRADIENT_MIN = 180f
         const val DEFAULT_MIN_DISTANCE = 0.5f
         const val DEFAULT_ISOLATION_DISTANCE = 0.75f
         const val DEFAULT_MIN_NEIGHBOURS = 2
         const val DEFAULT_POSE_MISS_PENALTY = 0f
         const val DEFAULT_GRID_CELL_SIZE = 0.1f
-        const val DEFAULT_OCCUPANCY_ORIENTATION_STEP = 5
+        const val DEFAULT_OCCUPANCY_ORIENTATION_STEP = 2
         const val DEFAULT_OCCUPANCY_ORIENTATION_SPAN = 90
         const val DEFAULT_OCCUPANCY_SCALE_MIN = 0.8f
         const val DEFAULT_OCCUPANCY_SCALE_MAX = 1.2f
-        const val DEFAULT_OCCUPANCY_SCALE_STEP = 0.05f
+        const val DEFAULT_OCCUPANCY_SCALE_STEP = 0.025f
         const val DEFAULT_PARTICLE_COUNT = 200
         const val DEFAULT_PARTICLE_ITERATIONS = 5
     }
@@ -60,7 +60,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val showLogs = MutableStateFlow(false)
     val filterPoseInput = MutableStateFlow(true)
     val bufferSize = MutableStateFlow(DEFAULT_BUFFER_SIZE)
-    val matchRotation = MutableStateFlow(false)
+    val matchRotation = MutableStateFlow(true)
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(DEFAULT_CONFIDENCE_THRESHOLD)
     val gradientMin = MutableStateFlow(DEFAULT_GRADIENT_MIN)
