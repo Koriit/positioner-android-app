@@ -282,7 +282,8 @@ fun LidarScreen(vm: LidarViewModel) {
                 if (showSettings) {
                     SettingsPanel(
                         vm,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        scrollable = false,
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
