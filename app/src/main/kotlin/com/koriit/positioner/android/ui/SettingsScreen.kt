@@ -34,9 +34,21 @@ import com.koriit.positioner.android.viewmodel.LidarViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 
+/**
+ * Panel displaying configurable LiDAR options.
+ *
+ * @param vm provides setting state and actions.
+ * @param modifier modifier for the panel container.
+ * @param scrollable wraps content in a [verticalScroll] when true. Disable when a parent already
+ * provides scrolling to avoid nested scroll exceptions.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
+fun SettingsPanel(
+    vm: LidarViewModel,
+    modifier: Modifier = Modifier,
+    scrollable: Boolean = true,
+) {
     val autoScale by vm.autoScale.collectAsState()
     val showLogs by vm.showLogs.collectAsState()
     val showMeasurements by vm.showMeasurements.collectAsState()
@@ -77,7 +89,13 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val particleCount by vm.particleCount.collectAsState()
     val particleIterations by vm.particleIterations.collectAsState()
 
-    Column(modifier = modifier.verticalScroll(rememberScrollState())) {
+    val containerModifier = if (scrollable) {
+        modifier.verticalScroll(rememberScrollState())
+    } else {
+        modifier
+    }
+
+    Column(modifier = containerModifier) {
         Text("Display", style = MaterialTheme.typography.titleMedium)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = autoScale, onCheckedChange = { vm.autoScale.value = it })
