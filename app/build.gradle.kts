@@ -74,6 +74,7 @@ dependencies {
     implementation(libs.jts.core)
     implementation(libs.multik.core)
     implementation(libs.multik.kotlin)
+    implementation(libs.commons.math3)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.crashlytics)

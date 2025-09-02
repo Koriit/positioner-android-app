@@ -1,0 +1,23 @@
+== Line detection
+
+When enabled, incoming LiDAR measurements are grouped into linear features. Each detected line is converted back into evenly spaced measurements matching the number of original points, preserving the influence of long walls while reducing noise. This can make pose estimation faster and more robust by focusing on structural elements such as walls.
+
+The settings panel also allows toggling visualisation of raw measurements and detected lines.
+
+=== Parameters
+
+Distance threshold:: Maximum perpendicular distance in metres a point may deviate from a candidate line.
+
+Minimum points:: Minimum number of measurements required to accept a line.
+
+Angle tolerance:: When adjacent lines differ by less than this angle (degrees) they are merged.
+
+Gap tolerance:: Maximum angular gap in degrees between consecutive points to still belong to the same line.
+
+=== Adaptive filtering
+
+When the adaptive line filter is enabled, detected lines shorter than a dynamic
+threshold are discarded. The threshold is derived from configurable
+percentiles of line length and inlier count. Each minimum is computed as
+`factor × Px` and clamped to a user supplied range. This helps ignore spurious
+short segments while retaining structural features.

@@ -16,6 +16,9 @@ import androidx.compose.material3.Divider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.RangeSlider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,12 +31,16 @@ import androidx.compose.ui.unit.dp
 import com.koriit.positioner.android.localization.PoseAlgorithm
 import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val autoScale by vm.autoScale.collectAsState()
     val showLogs by vm.showLogs.collectAsState()
+    val showMeasurements by vm.showMeasurements.collectAsState()
+    val showLines by vm.showLines.collectAsState()
     val filterPoseInput by vm.filterPoseInput.collectAsState()
     val bufferSize by vm.bufferSize.collectAsState()
     val flushInterval by vm.flushIntervalMs.collectAsState()
@@ -43,6 +50,20 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
     val minDistance by vm.minDistance.collectAsState()
     val isolationDistance by vm.isolationDistance.collectAsState()
     val isolationMinNeighbours by vm.isolationMinNeighbours.collectAsState()
+    val detectLines by vm.detectLines.collectAsState()
+    val lineDistanceThreshold by vm.lineDistanceThreshold.collectAsState()
+    val lineMinPoints by vm.lineMinPoints.collectAsState()
+    val lineAngleTolerance by vm.lineAngleTolerance.collectAsState()
+    val lineGapTolerance by vm.lineGapTolerance.collectAsState()
+    val lineFilterEnabled by vm.lineFilterEnabled.collectAsState()
+    val lineFilterLengthPercentile by vm.lineFilterLengthPercentile.collectAsState()
+    val lineFilterLengthFactor by vm.lineFilterLengthFactor.collectAsState()
+    val lineFilterLengthMin by vm.lineFilterLengthMin.collectAsState()
+    val lineFilterLengthMax by vm.lineFilterLengthMax.collectAsState()
+    val lineFilterInlierPercentile by vm.lineFilterInlierPercentile.collectAsState()
+    val lineFilterInlierFactor by vm.lineFilterInlierFactor.collectAsState()
+    val lineFilterInlierMin by vm.lineFilterInlierMin.collectAsState()
+    val lineFilterInlierMax by vm.lineFilterInlierMax.collectAsState()
     val poseMissPenalty by vm.poseMissPenalty.collectAsState()
     val showGrid by vm.showOccupancyGrid.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
@@ -65,6 +86,14 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = showLogs, onCheckedChange = { vm.showLogs.value = it })
             Text("Show logs")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = showMeasurements, onCheckedChange = { vm.showMeasurements.value = it })
+            Text("Show measurements")
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = showLines, onCheckedChange = { vm.showLines.value = it })
+            Text("Show lines")
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = showGrid, onCheckedChange = { vm.showOccupancyGrid.value = it })
@@ -137,6 +166,106 @@ fun SettingsPanel(vm: LidarViewModel, modifier: Modifier = Modifier) {
             valueRange = 0f..10f,
             onReset = { vm.resetIsolationMinNeighbours() }
         )
+        Divider()
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text("Line detection", style = MaterialTheme.typography.titleMedium)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = detectLines, onCheckedChange = { vm.detectLines.value = it })
+            Text("Detect lines")
+        }
+        Text("Distance threshold: ${"%.2f".format(lineDistanceThreshold)} m")
+        SliderWithActions(
+            value = lineDistanceThreshold,
+            onValueChange = { vm.lineDistanceThreshold.value = it },
+            valueRange = 0f..0.1f,
+            onReset = { vm.resetLineDistanceThreshold() }
+        )
+        Text("Min points: $lineMinPoints")
+        SliderWithActions(
+            value = lineMinPoints.toFloat(),
+            onValueChange = { vm.lineMinPoints.value = it.toInt() },
+            valueRange = 2f..20f,
+            onReset = { vm.resetLineMinPoints() }
+        )
+        Text("Angle tolerance: ${lineAngleTolerance.toInt()}°")
+        SliderWithActions(
+            value = lineAngleTolerance,
+            onValueChange = { vm.lineAngleTolerance.value = it },
+            valueRange = 0f..30f,
+            onReset = { vm.resetLineAngleTolerance() }
+        )
+        Text("Gap tolerance: ${lineGapTolerance.toInt()}°")
+        SliderWithActions(
+            value = lineGapTolerance,
+            onValueChange = { vm.lineGapTolerance.value = it },
+            valueRange = 0f..10f,
+            onReset = { vm.resetLineGapTolerance() }
+        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = lineFilterEnabled, onCheckedChange = { vm.lineFilterEnabled.value = it })
+            Text("Adaptive line filter")
+        }
+        if (lineFilterEnabled) {
+            Text("Length percentile: ${lineFilterLengthPercentile.toInt()}%")
+            SliderWithActions(
+                value = lineFilterLengthPercentile,
+                onValueChange = { vm.lineFilterLengthPercentile.value = it },
+                valueRange = 0f..100f,
+                onReset = { vm.resetLineFilterLengthPercentile() }
+            )
+            Text("Length factor: ${"%.2f".format(lineFilterLengthFactor)}")
+            SliderWithActions(
+                value = lineFilterLengthFactor,
+                onValueChange = { vm.lineFilterLengthFactor.value = it },
+                valueRange = 0f..1f,
+                onReset = { vm.resetLineFilterLengthFactor() }
+            )
+            Text("Length clamp: ${"%.2f".format(lineFilterLengthMin)}-${"%.2f".format(lineFilterLengthMax)} m")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RangeSlider(
+                    value = lineFilterLengthMin..lineFilterLengthMax,
+                    onValueChange = {
+                        vm.lineFilterLengthMin.value = it.start
+                        vm.lineFilterLengthMax.value = it.endInclusive
+                    },
+                    valueRange = 0f..2f,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { vm.resetLineFilterLengthClamp() }) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "Reset")
+                }
+            }
+            Text("Inliers percentile: ${lineFilterInlierPercentile.toInt()}%")
+            SliderWithActions(
+                value = lineFilterInlierPercentile,
+                onValueChange = { vm.lineFilterInlierPercentile.value = it },
+                valueRange = 0f..100f,
+                onReset = { vm.resetLineFilterInlierPercentile() }
+            )
+            Text("Inliers factor: ${"%.2f".format(lineFilterInlierFactor)}")
+            SliderWithActions(
+                value = lineFilterInlierFactor,
+                onValueChange = { vm.lineFilterInlierFactor.value = it },
+                valueRange = 0f..1f,
+                onReset = { vm.resetLineFilterInlierFactor() }
+            )
+            Text("Inliers clamp: $lineFilterInlierMin-$lineFilterInlierMax")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RangeSlider(
+                    value = lineFilterInlierMin.toFloat()..lineFilterInlierMax.toFloat(),
+                    onValueChange = {
+                        vm.lineFilterInlierMin.value = it.start.toInt()
+                        vm.lineFilterInlierMax.value = it.endInclusive.toInt()
+                    },
+                    valueRange = 0f..30f,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { vm.resetLineFilterInlierClamp() }) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "Reset")
+                }
+            }
+        }
         Divider()
         Spacer(modifier = Modifier.height(8.dp))
 
