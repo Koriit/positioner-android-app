@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import com.koriit.positioner.android.localization.OccupancyGrid
+import com.koriit.positioner.android.lidar.LineDetector.LineFeature
 import kotlin.math.min
 
 /**
@@ -25,6 +26,7 @@ import kotlin.math.min
 @Composable
 fun LidarPlot(
     measurements: List<LidarMeasurement>,
+    lines: List<LineFeature> = emptyList(),
     modifier: Modifier = Modifier,
     rotation: Int = 0,
     autoScale: Boolean = false,
@@ -36,6 +38,8 @@ fun LidarPlot(
     userPosition: Pair<Float, Float>? = null,
     occupancyGrid: OccupancyGrid? = null,
     showOccupancyGrid: Boolean = false,
+    showMeasurements: Boolean = true,
+    showLines: Boolean = true,
 ) {
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
@@ -53,6 +57,26 @@ fun LidarPlot(
             Triple(x, y, m.confidence)
         }
 
+        val segments = lines.map { line ->
+            var (sx, sy) = line.start
+            var (ex, ey) = line.end
+            val total = rotation.toFloat() + measurementOrientation
+            if (total != 0f) {
+                val angleRad = Math.toRadians(total.toDouble())
+                val cos = kotlin.math.cos(angleRad).toFloat()
+                val sin = kotlin.math.sin(angleRad).toFloat()
+                val rsx = sx * cos - sy * sin
+                val rsy = sx * sin + sy * cos
+                val rex = ex * cos - ey * sin
+                val rey = ex * sin + ey * cos
+                sx = rsx
+                sy = rsy
+                ex = rex
+                ey = rey
+            }
+            Pair(sx to sy, ex to ey)
+        }
+
         val (ux, uy) = userPosition ?: (0f to 0f)
 
         val planRange = floorPlan.flatten().maxOfOrNull { (x, y) ->
@@ -65,10 +89,13 @@ fun LidarPlot(
             kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat()
         } ?: 0f
 
+        val lineRange = segments.flatMap { listOf(it.first, it.second) }
+            .maxOfOrNull { (x, y) -> kotlin.math.hypot(x.toDouble(), y.toDouble()).toFloat() } ?: 0f
+
         val maxRange = if (autoScale) {
-            maxOf(planRange, pointRange).coerceAtLeast(1f)
+            maxOf(planRange, pointRange, lineRange).coerceAtLeast(1f)
         } else {
-            maxOf(4f, planRange)
+            maxOf(4f, planRange, lineRange)
         }
 
         val scale = min(size.width, size.height) / (maxRange * 2f)
@@ -114,21 +141,34 @@ fun LidarPlot(
                 }
             }
 
-            points.forEach { (x, y, confidence) ->
-                val px = x * scale
-                val py = -y * scale
+            if (showLines) {
+                segments.forEach { (start, end) ->
+                    drawLine(
+                        color = Color.Magenta,
+                        start = Offset(start.first * scale, -start.second * scale),
+                        end = Offset(end.first * scale, -end.second * scale),
+                        strokeWidth = 2f,
+                    )
+                }
+            }
 
-                // Create gradient color based on confidence (0-255)
-                // 0 = red (low confidence), 255 = green (high confidence)
-                val normalizedConfidence = ((confidence - gradientMin) / (255f - gradientMin)).coerceIn(0f, 1f)
-                val color = Color(
-                    red = 1f - normalizedConfidence,
-                    green = normalizedConfidence,
-                    blue = 0f,
-                    alpha = 1f
-                )
+            if (showMeasurements) {
+                points.forEach { (x, y, confidence) ->
+                    val px = x * scale
+                    val py = -y * scale
 
-                drawCircle(color, radius = 3f, center = Offset(px, py))
+                    // Create gradient color based on confidence (0-255)
+                    // 0 = red (low confidence), 255 = green (high confidence)
+                    val normalizedConfidence = ((confidence - gradientMin) / (255f - gradientMin)).coerceIn(0f, 1f)
+                    val color = Color(
+                        red = 1f - normalizedConfidence,
+                        green = normalizedConfidence,
+                        blue = 0f,
+                        alpha = 1f
+                    )
+
+                    drawCircle(color, radius = 3f, center = Offset(px, py))
+                }
             }
 
             userPosition?.let {

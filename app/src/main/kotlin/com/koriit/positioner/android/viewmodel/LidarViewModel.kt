@@ -11,6 +11,7 @@ import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
+import com.koriit.positioner.android.lidar.LineDetector
 import com.koriit.positioner.android.localization.OccupancyGrid
 import com.koriit.positioner.android.localization.OccupancyPoseEstimator
 import com.koriit.positioner.android.localization.ParticlePoseEstimator
@@ -43,6 +44,19 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_MIN_DISTANCE = 0.5f
         const val DEFAULT_ISOLATION_DISTANCE = 0.75f
         const val DEFAULT_MIN_NEIGHBOURS = 2
+        const val DEFAULT_LINE_DISTANCE_THRESHOLD = 0.02f
+        const val DEFAULT_LINE_MIN_POINTS = 5
+        const val DEFAULT_LINE_ANGLE_TOLERANCE = 5f
+        const val DEFAULT_LINE_GAP_TOLERANCE = 3f
+        const val DEFAULT_LINE_FILTER_ENABLED = false
+        const val DEFAULT_LINE_FILTER_LENGTH_PERCENTILE = 75f
+        const val DEFAULT_LINE_FILTER_LENGTH_FACTOR = 0.5f
+        const val DEFAULT_LINE_FILTER_LENGTH_MIN = 0.2f
+        const val DEFAULT_LINE_FILTER_LENGTH_MAX = 1f
+        const val DEFAULT_LINE_FILTER_INLIER_PERCENTILE = 75f
+        const val DEFAULT_LINE_FILTER_INLIER_FACTOR = 0.5f
+        const val DEFAULT_LINE_FILTER_INLIER_MIN = 3
+        const val DEFAULT_LINE_FILTER_INLIER_MAX = 10
         const val DEFAULT_POSE_MISS_PENALTY = 0f
         const val DEFAULT_GRID_CELL_SIZE = 0.1f
         const val DEFAULT_OCCUPANCY_ORIENTATION_STEP = 2
@@ -52,12 +66,16 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_OCCUPANCY_SCALE_STEP = 0.025f
         const val DEFAULT_PARTICLE_COUNT = 200
         const val DEFAULT_PARTICLE_ITERATIONS = 5
+        const val DEFAULT_SHOW_MEASUREMENTS = true
+        const val DEFAULT_SHOW_LINES = false
     }
 
     val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
     val rotation = MutableStateFlow(0)
     val autoScale = MutableStateFlow(true)
     val showLogs = MutableStateFlow(false)
+    val showMeasurements = MutableStateFlow(DEFAULT_SHOW_MEASUREMENTS)
+    val showLines = MutableStateFlow(DEFAULT_SHOW_LINES)
     val filterPoseInput = MutableStateFlow(true)
     val bufferSize = MutableStateFlow(DEFAULT_BUFFER_SIZE)
     val matchRotation = MutableStateFlow(true)
@@ -67,6 +85,22 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val minDistance = MutableStateFlow(DEFAULT_MIN_DISTANCE) // metres
     val isolationDistance = MutableStateFlow(DEFAULT_ISOLATION_DISTANCE) // metres
     val isolationMinNeighbours = MutableStateFlow(DEFAULT_MIN_NEIGHBOURS)
+    val detectLines = MutableStateFlow(false)
+    val lineDistanceThreshold = MutableStateFlow(DEFAULT_LINE_DISTANCE_THRESHOLD)
+    val lineMinPoints = MutableStateFlow(DEFAULT_LINE_MIN_POINTS)
+    val lineAngleTolerance = MutableStateFlow(DEFAULT_LINE_ANGLE_TOLERANCE)
+    val lineGapTolerance = MutableStateFlow(DEFAULT_LINE_GAP_TOLERANCE)
+    val lineFilterEnabled = MutableStateFlow(DEFAULT_LINE_FILTER_ENABLED)
+    val lineFilterLengthPercentile = MutableStateFlow(DEFAULT_LINE_FILTER_LENGTH_PERCENTILE)
+    val lineFilterLengthFactor = MutableStateFlow(DEFAULT_LINE_FILTER_LENGTH_FACTOR)
+    val lineFilterLengthMin = MutableStateFlow(DEFAULT_LINE_FILTER_LENGTH_MIN)
+    val lineFilterLengthMax = MutableStateFlow(DEFAULT_LINE_FILTER_LENGTH_MAX)
+    val lineFilterInlierPercentile = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_PERCENTILE)
+    val lineFilterInlierFactor = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_FACTOR)
+    val lineFilterInlierMin = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_MIN)
+    val lineFilterInlierMax = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_MAX)
+    val lineLengthPx = MutableStateFlow(0f)
+    val lineInlierPx = MutableStateFlow(0f)
     val poseMissPenalty = MutableStateFlow(DEFAULT_POSE_MISS_PENALTY)
     val showOccupancyGrid = MutableStateFlow(false)
     val gridCellSize = MutableStateFlow(DEFAULT_GRID_CELL_SIZE)
@@ -107,6 +141,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
+    val lineFeatures = MutableStateFlow<List<LineDetector.LineFeature>>(emptyList())
     private var lastBuffer: List<LidarMeasurement> = emptyList()
     val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
 
@@ -129,6 +164,11 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 minDistance.map { },
                 isolationDistance.map { },
                 isolationMinNeighbours.map { },
+                detectLines.map { },
+                lineDistanceThreshold.map { },
+                lineMinPoints.map { },
+                lineAngleTolerance.map { },
+                lineGapTolerance.map { },
                 filterPoseInput.map { },
                 poseMissPenalty.map { },
                 gridCellSize.map { },
@@ -166,6 +206,22 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetMinDistance() { minDistance.value = DEFAULT_MIN_DISTANCE }
     fun resetIsolationDistance() { isolationDistance.value = DEFAULT_ISOLATION_DISTANCE }
     fun resetIsolationMinNeighbours() { isolationMinNeighbours.value = DEFAULT_MIN_NEIGHBOURS }
+    fun resetLineDistanceThreshold() { lineDistanceThreshold.value = DEFAULT_LINE_DISTANCE_THRESHOLD }
+    fun resetLineMinPoints() { lineMinPoints.value = DEFAULT_LINE_MIN_POINTS }
+    fun resetLineAngleTolerance() { lineAngleTolerance.value = DEFAULT_LINE_ANGLE_TOLERANCE }
+    fun resetLineGapTolerance() { lineGapTolerance.value = DEFAULT_LINE_GAP_TOLERANCE }
+    fun resetLineFilterLengthPercentile() { lineFilterLengthPercentile.value = DEFAULT_LINE_FILTER_LENGTH_PERCENTILE }
+    fun resetLineFilterLengthFactor() { lineFilterLengthFactor.value = DEFAULT_LINE_FILTER_LENGTH_FACTOR }
+    fun resetLineFilterLengthClamp() {
+        lineFilterLengthMin.value = DEFAULT_LINE_FILTER_LENGTH_MIN
+        lineFilterLengthMax.value = DEFAULT_LINE_FILTER_LENGTH_MAX
+    }
+    fun resetLineFilterInlierPercentile() { lineFilterInlierPercentile.value = DEFAULT_LINE_FILTER_INLIER_PERCENTILE }
+    fun resetLineFilterInlierFactor() { lineFilterInlierFactor.value = DEFAULT_LINE_FILTER_INLIER_FACTOR }
+    fun resetLineFilterInlierClamp() {
+        lineFilterInlierMin.value = DEFAULT_LINE_FILTER_INLIER_MIN
+        lineFilterInlierMax.value = DEFAULT_LINE_FILTER_INLIER_MAX
+    }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
     fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
     fun resetGridCellSize() { gridCellSize.value = DEFAULT_GRID_CELL_SIZE; rebuildGrid() }
@@ -196,6 +252,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             val settings = LidarSettings(
                 autoScale = autoScale.value,
                 showLogs = showLogs.value,
+                showMeasurements = showMeasurements.value,
+                showLines = showLines.value,
                 filterPoseInput = filterPoseInput.value,
                 bufferSize = bufferSize.value,
                 flushIntervalMs = flushIntervalMs.value,
@@ -205,6 +263,20 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 minDistance = minDistance.value,
                 isolationDistance = isolationDistance.value,
                 isolationMinNeighbours = isolationMinNeighbours.value,
+                detectLines = detectLines.value,
+                lineDistanceThreshold = lineDistanceThreshold.value,
+                lineMinPoints = lineMinPoints.value,
+                lineAngleTolerance = lineAngleTolerance.value,
+                lineGapTolerance = lineGapTolerance.value,
+                lineFilterEnabled = lineFilterEnabled.value,
+                lineFilterLengthPercentile = lineFilterLengthPercentile.value,
+                lineFilterLengthFactor = lineFilterLengthFactor.value,
+                lineFilterLengthMin = lineFilterLengthMin.value,
+                lineFilterLengthMax = lineFilterLengthMax.value,
+                lineFilterInlierPercentile = lineFilterInlierPercentile.value,
+                lineFilterInlierFactor = lineFilterInlierFactor.value,
+                lineFilterInlierMin = lineFilterInlierMin.value,
+                lineFilterInlierMax = lineFilterInlierMax.value,
                 poseMissPenalty = poseMissPenalty.value,
                 showOccupancyGrid = showOccupancyGrid.value,
                 gridCellSize = gridCellSize.value,
@@ -237,6 +309,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 withContext(Dispatchers.Main) {
                     autoScale.value = it.autoScale
                     showLogs.value = it.showLogs
+                    showMeasurements.value = it.showMeasurements
+                    showLines.value = it.showLines
                     filterPoseInput.value = it.filterPoseInput
                     bufferSize.value = it.bufferSize
                     flushIntervalMs.value = it.flushIntervalMs
@@ -246,6 +320,20 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     minDistance.value = it.minDistance
                     isolationDistance.value = it.isolationDistance
                     isolationMinNeighbours.value = it.isolationMinNeighbours
+                    detectLines.value = it.detectLines
+                    lineDistanceThreshold.value = it.lineDistanceThreshold
+                    lineMinPoints.value = it.lineMinPoints
+                    lineAngleTolerance.value = it.lineAngleTolerance
+                    lineGapTolerance.value = it.lineGapTolerance
+                    lineFilterEnabled.value = it.lineFilterEnabled
+                    lineFilterLengthPercentile.value = it.lineFilterLengthPercentile
+                    lineFilterLengthFactor.value = it.lineFilterLengthFactor
+                    lineFilterLengthMin.value = it.lineFilterLengthMin
+                    lineFilterLengthMax.value = it.lineFilterLengthMax
+                    lineFilterInlierPercentile.value = it.lineFilterInlierPercentile
+                    lineFilterInlierFactor.value = it.lineFilterInlierFactor
+                    lineFilterInlierMin.value = it.lineFilterInlierMin
+                    lineFilterInlierMax.value = it.lineFilterInlierMax
                     poseMissPenalty.value = it.poseMissPenalty
                     showOccupancyGrid.value = it.showOccupancyGrid
                     gridCellSize.value = it.gridCellSize
@@ -437,7 +525,38 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         filteredMeasurements.value = removed
         filteredPercentage.value = if (raw.isNotEmpty()) removed * 100f / raw.size else 0f
         _measurements.value = filtered
-        val poseInput = if (filterPoseInput.value) filtered else raw
+        val poseInput = if (detectLines.value) {
+            val lines = LineDetector.detect(
+                filtered,
+                lineDistanceThreshold.value,
+                lineMinPoints.value,
+                lineAngleTolerance.value,
+                lineGapTolerance.value,
+            )
+            val (filteredLines, stats) = LineDetector.filterAdaptive(
+                lines,
+                LineDetector.AdaptiveFilterParams(
+                    lineFilterEnabled.value,
+                    lineFilterLengthPercentile.value.toDouble(),
+                    lineFilterLengthFactor.value.toDouble(),
+                    lineFilterLengthMin.value.toDouble(),
+                    lineFilterLengthMax.value.toDouble(),
+                    lineFilterInlierPercentile.value.toDouble(),
+                    lineFilterInlierFactor.value.toDouble(),
+                    lineFilterInlierMin.value.toDouble(),
+                    lineFilterInlierMax.value.toDouble(),
+                ),
+            )
+            lineLengthPx.value = stats.lengthPx.toFloat()
+            lineInlierPx.value = stats.inliersPx.toFloat()
+            lineFeatures.value = filteredLines
+            LineDetector.asMeasurements(filteredLines)
+        } else {
+            lineFeatures.value = emptyList()
+            lineLengthPx.value = 0f
+            lineInlierPx.value = 0f
+            if (filterPoseInput.value) filtered else raw
+        }
         updateTransform(poseInput)
         if (updateAuto) {
             bufferSize.value = raw.size
