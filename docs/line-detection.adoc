@@ -1,6 +1,6 @@
 == Line detection
 
-When enabled, incoming LiDAR measurements are grouped into linear features. Each detected line is converted back into evenly spaced measurements matching the number of original points, preserving the influence of long walls while reducing noise. This can make pose estimation faster and more robust by focusing on structural elements such as walls.
+When enabled, incoming LiDAR measurements are grouped into linear features. Each detected line is converted back into evenly spaced measurements matching the number of original points, preserving the influence of long walls while reducing noise. Line endpoints are determined by projecting measurements onto a best-fit regression line, which prevents small incremental deviations from skewing the final orientation. This can make pose estimation faster and more robust by focusing on structural elements such as walls.
 
 The settings panel also allows toggling visualisation of raw measurements and detected lines.
 

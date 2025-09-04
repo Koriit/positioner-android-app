@@ -59,10 +59,20 @@ object LineDetector {
                 reg = SimpleRegression()
                 return
             }
-            val start = cluster.first()
-            val end = cluster.last()
+            val slope = reg.slope
+            val angleRad = if (slope.isNaN()) 0.0 else atan2(1.0, slope)
+            val dirX = kotlin.math.sin(angleRad).toFloat()
+            val dirY = kotlin.math.cos(angleRad).toFloat()
+            val base = cluster.first()
+            val projections = cluster.map { (x, y) ->
+                (x - base.first) * dirX + (y - base.second) * dirY
+            }
+            val minProj = projections.minOrNull() ?: 0f
+            val maxProj = projections.maxOrNull() ?: 0f
+            val start = base.first + dirX * minProj to base.second + dirY * minProj
+            val end = base.first + dirX * maxProj to base.second + dirY * maxProj
             val length = hypot(end.first - start.first, end.second - start.second)
-            val orientation = atan2(end.first - start.first, end.second - start.second) * 180f / PI.toFloat()
+            val orientation = (angleRad * 180.0 / PI).toFloat()
             lines.add(LineFeature(start, end, orientation, length, cluster.size))
             cluster = mutableListOf()
             reg = SimpleRegression()

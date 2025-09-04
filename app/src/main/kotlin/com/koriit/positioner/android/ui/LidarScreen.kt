@@ -166,6 +166,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     Text("Rotations/s: ${"%.2f".format(rps)}")
                     Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
                     Text("Filtered: $filteredCount (${"%.1f".format(filteredPct)}%)")
+                    Text("Lines: ${lineFeatures.size}")
                     if (lineFilterEnabled) {
                         Text("Len P${lengthPercentile.toInt()}: ${"%.2f".format(lineLengthPx)} m")
                         Text("Pts P${inlierPercentile.toInt()}: ${"%.0f".format(lineInlierPx)}")
@@ -237,7 +238,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     .border(2.dp, color = Color.Black)
             ) {
                 LidarPlot(
-                    measurements,
+                    measurements = measurements,
+                    lines = lineFeatures,
                     modifier = Modifier.fillMaxSize(),
                     rotation = rotation,
                     autoScale = autoScale,
@@ -249,6 +251,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     userPosition = userPosition,
                     occupancyGrid = occupancyGrid,
                     showOccupancyGrid = showGrid,
+                    showMeasurements = showMeasurements,
+                    showLines = showLines,
                 )
                 if (loading) {
                     Column(
@@ -335,6 +339,7 @@ fun LidarScreen(vm: LidarViewModel) {
                         Text("Rotations/s: ${"%.2f".format(rps)}")
                         Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
                         Text("Filtered: $filteredCount (${"%.1f".format(filteredPct)}%)")
+                        Text("Lines: ${lineFeatures.size}")
                         if (lineFilterEnabled) {
                             Text("Len P${lengthPercentile.toInt()}: ${"%.2f".format(lineLengthPx)} m")
                             Text("Pts P${inlierPercentile.toInt()}: ${"%.0f".format(lineInlierPx)}")
