@@ -2,6 +2,8 @@
 
 When enabled, incoming LiDAR measurements are grouped into linear features. Each detected line is converted back into evenly spaced measurements matching the number of original points, preserving the influence of long walls while reducing noise. This can make pose estimation faster and more robust by focusing on structural elements such as walls.
 
+Line orientation and endpoints are derived from a linear regression fit of each cluster rather than simply linking the first and last measurements. This minimises drift from incremental errors and produces more stable line angles.
+
 The settings panel also allows toggling visualisation of raw measurements and detected lines.
 
 === Parameters

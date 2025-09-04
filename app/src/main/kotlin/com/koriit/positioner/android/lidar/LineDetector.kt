@@ -4,7 +4,9 @@ import org.apache.commons.math3.stat.descriptive.rank.Percentile
 import org.apache.commons.math3.stat.regression.SimpleRegression
 import kotlin.math.abs
 import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 import kotlin.math.PI
 
 /**
@@ -39,6 +41,12 @@ object LineDetector {
 
     /**
      * Detect line features from [measurements].
+     *
+     * Points are clustered in angular order and each cluster is fitted with a
+     * simple linear regression. The resulting regression line is used to derive
+     * segment orientation and to project the cluster onto that line to determine
+     * its endpoints, avoiding drift from merely connecting the first and last
+     * measurements.
      */
     fun detect(
         measurements: List<LidarMeasurement>,
@@ -59,10 +67,17 @@ object LineDetector {
                 reg = SimpleRegression()
                 return
             }
-            val start = cluster.first()
-            val end = cluster.last()
+            val slope = reg.slope
+            val angleRad = atan2(1.0, slope)
+            val dirX = sin(angleRad)
+            val dirY = cos(angleRad)
+            val projections = cluster.map { (x, y) -> x * dirX + y * dirY }
+            val minIndex = projections.indices.minByOrNull { projections[it] } ?: 0
+            val maxIndex = projections.indices.maxByOrNull { projections[it] } ?: cluster.lastIndex
+            val start = cluster[minIndex]
+            val end = cluster[maxIndex]
             val length = hypot(end.first - start.first, end.second - start.second)
-            val orientation = atan2(end.first - start.first, end.second - start.second) * 180f / PI.toFloat()
+            val orientation = (angleRad * 180f / PI.toFloat()).toFloat()
             lines.add(LineFeature(start, end, orientation, length, cluster.size))
             cluster = mutableListOf()
             reg = SimpleRegression()
