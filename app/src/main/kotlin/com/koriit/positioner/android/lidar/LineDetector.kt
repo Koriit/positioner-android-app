@@ -6,6 +6,8 @@ import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.PI
+import kotlin.math.sin
+import kotlin.math.cos
 
 /**
  * Detect straight line segments in a set of lidar measurements.
@@ -59,10 +61,29 @@ object LineDetector {
                 reg = SimpleRegression()
                 return
             }
-            val start = cluster.first()
-            val end = cluster.last()
+            val slope = reg.slope
+            val angleRad = if (slope.isFinite()) {
+                kotlin.math.atan2(1.0, slope)
+            } else {
+                val first = cluster.first()
+                val last = cluster.last()
+                atan2((last.first - first.first).toDouble(), (last.second - first.second).toDouble())
+            }
+            val ux = kotlin.math.sin(angleRad).toFloat()
+            val uy = kotlin.math.cos(angleRad).toFloat()
+            val refx = cluster.sumOf { it.first.toDouble() }.toFloat() / cluster.size
+            val refy = cluster.sumOf { it.second.toDouble() }.toFloat() / cluster.size
+            var minT = Float.POSITIVE_INFINITY
+            var maxT = Float.NEGATIVE_INFINITY
+            for ((x, y) in cluster) {
+                val t = (x - refx) * ux + (y - refy) * uy
+                if (t < minT) minT = t
+                if (t > maxT) maxT = t
+            }
+            val start = Pair(refx + minT * ux, refy + minT * uy)
+            val end = Pair(refx + maxT * ux, refy + maxT * uy)
             val length = hypot(end.first - start.first, end.second - start.second)
-            val orientation = atan2(end.first - start.first, end.second - start.second) * 180f / PI.toFloat()
+            val orientation = (angleRad * 180f / PI).toFloat()
             lines.add(LineFeature(start, end, orientation, length, cluster.size))
             cluster = mutableListOf()
             reg = SimpleRegression()
