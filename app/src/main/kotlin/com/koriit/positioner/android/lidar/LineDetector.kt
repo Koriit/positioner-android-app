@@ -48,6 +48,52 @@ object LineDetector {
         minPoints: Int,
         angleTolerance: Float,
         gapTolerance: Float,
+        algorithm: LineAlgorithm = LineAlgorithm.CLUSTER,
+    ): List<LineFeature> {
+        return when (algorithm) {
+            LineAlgorithm.CLUSTER -> detectCluster(
+                measurements,
+                distanceThreshold,
+                minPoints,
+                angleTolerance,
+                gapTolerance,
+            )
+            LineAlgorithm.RANSAC -> detectRansac(
+                measurements,
+                distanceThreshold,
+                minPoints,
+                angleTolerance,
+            )
+        }
+    }
+
+    private fun merge(lines: List<LineFeature>, angleTolerance: Float): List<LineFeature> {
+        if (lines.size <= 1 || angleTolerance <= 0f) return lines
+        val merged = mutableListOf<LineFeature>()
+        for (line in lines.sortedBy { it.orientation }) {
+            val last = merged.lastOrNull()
+            if (last != null && abs(line.orientation - last.orientation) <= angleTolerance) {
+                val newLine = LineFeature(
+                    last.start,
+                    line.end,
+                    last.orientation,
+                    hypot(line.end.first - last.start.first, line.end.second - last.start.second),
+                    last.pointCount + line.pointCount,
+                )
+                merged[merged.lastIndex] = newLine
+            } else {
+                merged.add(line)
+            }
+        }
+        return merged
+    }
+
+    private fun detectCluster(
+        measurements: List<LidarMeasurement>,
+        distanceThreshold: Float,
+        minPoints: Int,
+        angleTolerance: Float,
+        gapTolerance: Float,
     ): List<LineFeature> {
         if (measurements.isEmpty()) return emptyList()
         val sorted = measurements.sortedBy { it.angle }
@@ -118,25 +164,69 @@ object LineDetector {
             lastAngle = m.angle
         }
         finalizeCluster()
+        return merge(lines, angleTolerance)
+    }
 
-        if (lines.size <= 1 || angleTolerance <= 0f) return lines
-        val merged = mutableListOf<LineFeature>()
-        for (line in lines) {
-            val last = merged.lastOrNull()
-            if (last != null && abs(line.orientation - last.orientation) <= angleTolerance) {
-                val newLine = LineFeature(
-                    last.start,
-                    line.end,
-                    last.orientation,
-                    hypot(line.end.first - last.start.first, line.end.second - last.start.second),
-                    last.pointCount + line.pointCount,
-                )
-                merged[merged.lastIndex] = newLine
-            } else {
-                merged.add(line)
+    private fun detectRansac(
+        measurements: List<LidarMeasurement>,
+        distanceThreshold: Float,
+        minPoints: Int,
+        angleTolerance: Float,
+    ): List<LineFeature> {
+        if (measurements.isEmpty()) return emptyList()
+        val remaining = measurements.toMutableList()
+        val lines = mutableListOf<LineFeature>()
+        val rand = kotlin.random.Random(0)
+        while (remaining.size >= minPoints) {
+            var bestInliers: List<LidarMeasurement> = emptyList()
+            var bestA = 0f
+            var bestB = 0f
+            var bestC = 0f
+            repeat(100) {
+                val p1 = remaining.random(rand)
+                var p2 = remaining.random(rand)
+                if (p1 === p2) return@repeat
+                val (x1, y1) = p1.toPoint()
+                val (x2, y2) = p2.toPoint()
+                val A = y1 - y2
+                val B = x2 - x1
+                val C = x1 * y2 - x2 * y1
+                val norm = hypot(A, B)
+                if (norm == 0f) return@repeat
+                val inliers = remaining.filter {
+                    val (x, y) = it.toPoint()
+                    abs(A * x + B * y + C) / norm <= distanceThreshold
+                }
+                if (inliers.size > bestInliers.size) {
+                    bestInliers = inliers
+                    bestA = A
+                    bestB = B
+                    bestC = C
+                }
             }
+            if (bestInliers.size < minPoints) break
+            val pts = bestInliers.map { it.toPoint() }
+            val angleRad = atan2(bestB.toDouble(), -bestA.toDouble())
+            val ux = sin(angleRad).toFloat()
+            val uy = cos(angleRad).toFloat()
+            val refx = pts.sumOf { it.first.toDouble() }.toFloat() / pts.size
+            val refy = pts.sumOf { it.second.toDouble() }.toFloat() / pts.size
+            var minT = Float.POSITIVE_INFINITY
+            var maxT = Float.NEGATIVE_INFINITY
+            for ((x, y) in pts) {
+                val t = (x - refx) * ux + (y - refy) * uy
+                if (t < minT) minT = t
+                if (t > maxT) maxT = t
+            }
+            val start = Pair(refx + minT * ux, refy + minT * uy)
+            val end = Pair(refx + maxT * ux, refy + maxT * uy)
+            val length = hypot(end.first - start.first, end.second - start.second)
+            var orientation = (angleRad * 180f / PI).toFloat()
+            if (orientation < 0f) orientation += 180f
+            lines.add(LineFeature(start, end, orientation, length, bestInliers.size))
+            remaining.removeAll(bestInliers.toSet())
         }
-        return merged
+        return merge(lines, angleTolerance)
     }
 
     /**

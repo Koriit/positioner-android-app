@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.koriit.positioner.android.localization.PoseAlgorithm
+import com.koriit.positioner.android.lidar.LineAlgorithm
 import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 import androidx.compose.material.icons.Icons
@@ -76,6 +77,7 @@ fun SettingsPanel(
     val lineFilterInlierFactor by vm.lineFilterInlierFactor.collectAsState()
     val lineFilterInlierMin by vm.lineFilterInlierMin.collectAsState()
     val lineFilterInlierMax by vm.lineFilterInlierMax.collectAsState()
+    val lineAlgorithm by vm.lineAlgorithm.collectAsState()
     val poseMissPenalty by vm.poseMissPenalty.collectAsState()
     val showGrid by vm.showOccupancyGrid.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
@@ -191,6 +193,28 @@ fun SettingsPanel(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = detectLines, onCheckedChange = { vm.detectLines.value = it })
             Text("Detect lines")
+        }
+        var lineAlgoExpanded by remember { mutableStateOf(false) }
+        ExposedDropdownMenuBox(expanded = lineAlgoExpanded, onExpandedChange = { lineAlgoExpanded = !lineAlgoExpanded }) {
+            TextField(
+                value = lineAlgorithm.displayName,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Line algorithm") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = lineAlgoExpanded) },
+                modifier = Modifier.menuAnchor(),
+            )
+            DropdownMenu(expanded = lineAlgoExpanded, onDismissRequest = { lineAlgoExpanded = false }) {
+                LineAlgorithm.values().forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(option.displayName) },
+                        onClick = {
+                            vm.lineAlgorithm.value = option
+                            lineAlgoExpanded = false
+                        },
+                    )
+                }
+            }
         }
         Text("Distance threshold: ${"%.2f".format(lineDistanceThreshold)} m")
         SliderWithActions(

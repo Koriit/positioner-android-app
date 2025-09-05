@@ -12,6 +12,7 @@ import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
 import com.koriit.positioner.android.lidar.LineDetector
+import com.koriit.positioner.android.lidar.LineAlgorithm
 import com.koriit.positioner.android.localization.OccupancyGrid
 import com.koriit.positioner.android.localization.OccupancyPoseEstimator
 import com.koriit.positioner.android.localization.ParticlePoseEstimator
@@ -99,6 +100,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val lineFilterInlierFactor = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_FACTOR)
     val lineFilterInlierMin = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_MIN)
     val lineFilterInlierMax = MutableStateFlow(DEFAULT_LINE_FILTER_INLIER_MAX)
+    val lineAlgorithm = MutableStateFlow(LineAlgorithm.CLUSTER)
     val lineLengthPx = MutableStateFlow(0f)
     val lineInlierPx = MutableStateFlow(0f)
     val poseMissPenalty = MutableStateFlow(DEFAULT_POSE_MISS_PENALTY)
@@ -169,6 +171,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineMinPoints.map { },
                 lineAngleTolerance.map { },
                 lineGapTolerance.map { },
+                lineAlgorithm.map { },
                 filterPoseInput.map { },
                 poseMissPenalty.map { },
                 gridCellSize.map { },
@@ -277,6 +280,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineFilterInlierFactor = lineFilterInlierFactor.value,
                 lineFilterInlierMin = lineFilterInlierMin.value,
                 lineFilterInlierMax = lineFilterInlierMax.value,
+                lineAlgorithm = lineAlgorithm.value,
                 poseMissPenalty = poseMissPenalty.value,
                 showOccupancyGrid = showOccupancyGrid.value,
                 gridCellSize = gridCellSize.value,
@@ -334,6 +338,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     lineFilterInlierFactor.value = it.lineFilterInlierFactor
                     lineFilterInlierMin.value = it.lineFilterInlierMin
                     lineFilterInlierMax.value = it.lineFilterInlierMax
+                    lineAlgorithm.value = it.lineAlgorithm
                     poseMissPenalty.value = it.poseMissPenalty
                     showOccupancyGrid.value = it.showOccupancyGrid
                     gridCellSize.value = it.gridCellSize
@@ -532,6 +537,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineMinPoints.value,
                 lineAngleTolerance.value,
                 lineGapTolerance.value,
+                lineAlgorithm.value,
             )
             val (filteredLines, stats) = LineDetector.filterAdaptive(
                 lines,

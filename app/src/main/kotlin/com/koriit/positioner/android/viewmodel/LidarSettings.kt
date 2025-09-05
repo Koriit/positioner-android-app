@@ -1,6 +1,7 @@
 package com.koriit.positioner.android.viewmodel
 
 import com.koriit.positioner.android.localization.PoseAlgorithm
+import com.koriit.positioner.android.lidar.LineAlgorithm
 import kotlinx.serialization.Serializable
 
 /**
@@ -36,6 +37,7 @@ data class LidarSettings(
     val lineFilterInlierFactor: Float = LidarViewModel.DEFAULT_LINE_FILTER_INLIER_FACTOR,
     val lineFilterInlierMin: Int = LidarViewModel.DEFAULT_LINE_FILTER_INLIER_MIN,
     val lineFilterInlierMax: Int = LidarViewModel.DEFAULT_LINE_FILTER_INLIER_MAX,
+    val lineAlgorithm: LineAlgorithm = LineAlgorithm.CLUSTER,
     val poseMissPenalty: Float = LidarViewModel.DEFAULT_POSE_MISS_PENALTY,
     val showOccupancyGrid: Boolean = false,
     val gridCellSize: Float = LidarViewModel.DEFAULT_GRID_CELL_SIZE,

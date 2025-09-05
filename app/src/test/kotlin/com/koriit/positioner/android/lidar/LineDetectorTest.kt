@@ -4,6 +4,7 @@ import kotlin.math.atan2
 import kotlin.math.hypot
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import com.koriit.positioner.android.lidar.LineAlgorithm
 
 class LineDetectorTest {
     private fun meas(x: Float, y: Float): LidarMeasurement {
@@ -13,12 +14,25 @@ class LineDetectorTest {
     }
 
     @Test
-    fun detectsTwoLines() {
+    fun detectsTwoLinesCluster() {
         val points = mutableListOf<LidarMeasurement>()
         for (x in -10..10 step 2) {
             points.add(meas(x / 10f, 1f))
         }
-        val lines = LineDetector.detect(points, 0.2f, 3, 10f, 10f)
+        val lines = LineDetector.detect(points, 0.2f, 3, 10f, 10f, LineAlgorithm.CLUSTER)
+        assertEquals(1, lines.size)
+        assertEquals(90f, lines[0].orientation, 5f)
+        val reps = LineDetector.asMeasurements(lines)
+        assertEquals(lines[0].pointCount, reps.size)
+    }
+
+    @Test
+    fun detectsTwoLinesRansac() {
+        val points = mutableListOf<LidarMeasurement>()
+        for (x in -10..10 step 2) {
+            points.add(meas(x / 10f, 1f))
+        }
+        val lines = LineDetector.detect(points, 0.2f, 3, 10f, 10f, LineAlgorithm.RANSAC)
         assertEquals(1, lines.size)
         assertEquals(90f, lines[0].orientation, 5f)
         val reps = LineDetector.asMeasurements(lines)
