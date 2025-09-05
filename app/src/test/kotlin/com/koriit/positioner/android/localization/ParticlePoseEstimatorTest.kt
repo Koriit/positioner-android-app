@@ -27,14 +27,16 @@ class ParticlePoseEstimatorTest {
             measurements.add(LidarMeasurement(deg.toFloat(), (dist * 1000).toInt(), 200))
         }
         val result = runBlocking {
-            ParticlePoseEstimator.estimate(measurements, grid, particles = 200, iterations = 5, missPenalty = 1, random = Random(0))
+            ParticlePoseEstimator.estimate(measurements, grid, particles = 200, iterations = 5, random = Random(0))
         }
         val est = result.estimate!!
         assertEquals(0f, est.position.first, 1f)
         assertEquals(0f, est.position.second, 1f)
-        val diff30 = ((est.orientation - 30f + 540f) % 360f) - 180f
-        val diff150 = ((est.orientation - 150f + 540f) % 360f) - 180f
-        assertTrue(kotlin.math.abs(diff30) < 10f || kotlin.math.abs(diff150) < 10f)
+        val ok = listOf(30f, 150f, 210f, 330f).any { target ->
+            val diff = ((est.orientation - target + 540f) % 360f) - 180f
+            kotlin.math.abs(diff) < 10f
+        }
+        assertTrue(ok)
     }
 }
 

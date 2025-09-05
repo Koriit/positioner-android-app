@@ -68,6 +68,7 @@ fun SettingsPanel(
     val lineMinPoints by vm.lineMinPoints.collectAsState()
     val lineAngleTolerance by vm.lineAngleTolerance.collectAsState()
     val lineGapTolerance by vm.lineGapTolerance.collectAsState()
+    val lineMergeEnabled by vm.lineMergeEnabled.collectAsState()
     val lineFilterEnabled by vm.lineFilterEnabled.collectAsState()
     val lineFilterLengthPercentile by vm.lineFilterLengthPercentile.collectAsState()
     val lineFilterLengthFactor by vm.lineFilterLengthFactor.collectAsState()
@@ -78,7 +79,6 @@ fun SettingsPanel(
     val lineFilterInlierMin by vm.lineFilterInlierMin.collectAsState()
     val lineFilterInlierMax by vm.lineFilterInlierMax.collectAsState()
     val lineAlgorithm by vm.lineAlgorithm.collectAsState()
-    val poseMissPenalty by vm.poseMissPenalty.collectAsState()
     val showGrid by vm.showOccupancyGrid.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
     val useLastPose by vm.useLastPose.collectAsState()
@@ -230,20 +230,28 @@ fun SettingsPanel(
             valueRange = 2f..20f,
             onReset = { vm.resetLineMinPoints() }
         )
-        Text("Angle tolerance: ${lineAngleTolerance.toInt()}°")
-        SliderWithActions(
-            value = lineAngleTolerance,
-            onValueChange = { vm.lineAngleTolerance.value = it },
-            valueRange = 0f..30f,
-            onReset = { vm.resetLineAngleTolerance() }
-        )
-        Text("Gap tolerance: ${lineGapTolerance.toInt()}°")
-        SliderWithActions(
-            value = lineGapTolerance,
-            onValueChange = { vm.lineGapTolerance.value = it },
-            valueRange = 0f..10f,
-            onReset = { vm.resetLineGapTolerance() }
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(checked = lineMergeEnabled, onCheckedChange = { vm.lineMergeEnabled.value = it })
+            Text("Merge lines")
+        }
+        if (lineMergeEnabled) {
+            Text("Angle tolerance: ${lineAngleTolerance.toInt()}°")
+            SliderWithActions(
+                value = lineAngleTolerance,
+                onValueChange = { vm.lineAngleTolerance.value = it },
+                valueRange = 0f..30f,
+                onReset = { vm.resetLineAngleTolerance() }
+            )
+        }
+        if (lineAlgorithm == LineAlgorithm.CLUSTER) {
+            Text("Gap tolerance: ${lineGapTolerance.toInt()}°")
+            SliderWithActions(
+                value = lineGapTolerance,
+                onValueChange = { vm.lineGapTolerance.value = it },
+                valueRange = 0f..10f,
+                onReset = { vm.resetLineGapTolerance() }
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = lineFilterEnabled, onCheckedChange = { vm.lineFilterEnabled.value = it })
             Text("Adaptive line filter")
@@ -338,13 +346,6 @@ fun SettingsPanel(
                 }
             }
         }
-        Text("Pose miss penalty: ${poseMissPenalty.toInt()}")
-        SliderWithActions(
-            value = poseMissPenalty,
-            onValueChange = { vm.poseMissPenalty.value = it },
-            valueRange = 0f..5f,
-            onReset = { vm.resetPoseMissPenalty() }
-        )
         Text("Grid cell size: ${"%.2f".format(gridCellSize)} m")
         SliderWithActions(
             value = gridCellSize,

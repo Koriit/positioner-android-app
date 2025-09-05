@@ -18,9 +18,11 @@ Distance threshold:: Maximum perpendicular distance in metres a point may deviat
 
 Minimum points:: Minimum number of measurements required to accept a line.
 
+Merge lines:: Combine adjacent lines with similar orientation. When disabled, raw segments are kept separate.
+
 Angle tolerance:: When adjacent lines differ by less than this angle (degrees) they are merged.
 
-Gap tolerance:: Maximum angular gap in degrees between consecutive points to still belong to the same line.
+Gap tolerance (Cluster only):: Maximum angular gap in degrees between consecutive points to still belong to the same line.
 
 === Adaptive filtering
 

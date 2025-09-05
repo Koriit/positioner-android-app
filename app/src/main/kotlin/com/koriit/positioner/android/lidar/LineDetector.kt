@@ -49,6 +49,7 @@ object LineDetector {
         angleTolerance: Float,
         gapTolerance: Float,
         algorithm: LineAlgorithm = LineAlgorithm.CLUSTER,
+        merge: Boolean = true,
     ): List<LineFeature> {
         return when (algorithm) {
             LineAlgorithm.CLUSTER -> detectCluster(
@@ -57,12 +58,14 @@ object LineDetector {
                 minPoints,
                 angleTolerance,
                 gapTolerance,
+                merge,
             )
             LineAlgorithm.RANSAC -> detectRansac(
                 measurements,
                 distanceThreshold,
                 minPoints,
                 angleTolerance,
+                merge,
             )
         }
     }
@@ -94,6 +97,7 @@ object LineDetector {
         minPoints: Int,
         angleTolerance: Float,
         gapTolerance: Float,
+        mergeLines: Boolean,
     ): List<LineFeature> {
         if (measurements.isEmpty()) return emptyList()
         val sorted = measurements.sortedBy { it.angle }
@@ -164,7 +168,7 @@ object LineDetector {
             lastAngle = m.angle
         }
         finalizeCluster()
-        return merge(lines, angleTolerance)
+        return if (mergeLines) merge(lines, angleTolerance) else lines
     }
 
     private fun detectRansac(
@@ -172,6 +176,7 @@ object LineDetector {
         distanceThreshold: Float,
         minPoints: Int,
         angleTolerance: Float,
+        mergeLines: Boolean,
     ): List<LineFeature> {
         if (measurements.isEmpty()) return emptyList()
         val remaining = measurements.toMutableList()
@@ -226,7 +231,7 @@ object LineDetector {
             lines.add(LineFeature(start, end, orientation, length, bestInliers.size))
             remaining.removeAll(bestInliers.toSet())
         }
-        return merge(lines, angleTolerance)
+        return if (mergeLines) merge(lines, angleTolerance) else lines
     }
 
     /**

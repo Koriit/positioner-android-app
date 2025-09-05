@@ -49,6 +49,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_LINE_MIN_POINTS = 5
         const val DEFAULT_LINE_ANGLE_TOLERANCE = 5f
         const val DEFAULT_LINE_GAP_TOLERANCE = 3f
+        const val DEFAULT_LINE_MERGE_ENABLED = true
         const val DEFAULT_LINE_FILTER_ENABLED = false
         const val DEFAULT_LINE_FILTER_LENGTH_PERCENTILE = 75f
         const val DEFAULT_LINE_FILTER_LENGTH_FACTOR = 0.5f
@@ -58,7 +59,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_LINE_FILTER_INLIER_FACTOR = 0.5f
         const val DEFAULT_LINE_FILTER_INLIER_MIN = 3
         const val DEFAULT_LINE_FILTER_INLIER_MAX = 10
-        const val DEFAULT_POSE_MISS_PENALTY = 0f
         const val DEFAULT_GRID_CELL_SIZE = 0.1f
         const val DEFAULT_OCCUPANCY_ORIENTATION_STEP = 2
         const val DEFAULT_OCCUPANCY_ORIENTATION_SPAN = 90
@@ -91,6 +91,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val lineMinPoints = MutableStateFlow(DEFAULT_LINE_MIN_POINTS)
     val lineAngleTolerance = MutableStateFlow(DEFAULT_LINE_ANGLE_TOLERANCE)
     val lineGapTolerance = MutableStateFlow(DEFAULT_LINE_GAP_TOLERANCE)
+    val lineMergeEnabled = MutableStateFlow(DEFAULT_LINE_MERGE_ENABLED)
     val lineFilterEnabled = MutableStateFlow(DEFAULT_LINE_FILTER_ENABLED)
     val lineFilterLengthPercentile = MutableStateFlow(DEFAULT_LINE_FILTER_LENGTH_PERCENTILE)
     val lineFilterLengthFactor = MutableStateFlow(DEFAULT_LINE_FILTER_LENGTH_FACTOR)
@@ -103,7 +104,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val lineAlgorithm = MutableStateFlow(LineAlgorithm.CLUSTER)
     val lineLengthPx = MutableStateFlow(0f)
     val lineInlierPx = MutableStateFlow(0f)
-    val poseMissPenalty = MutableStateFlow(DEFAULT_POSE_MISS_PENALTY)
     val showOccupancyGrid = MutableStateFlow(false)
     val gridCellSize = MutableStateFlow(DEFAULT_GRID_CELL_SIZE)
     val useLastPose = MutableStateFlow(true)
@@ -171,9 +171,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineMinPoints.map { },
                 lineAngleTolerance.map { },
                 lineGapTolerance.map { },
+                lineMergeEnabled.map { },
                 lineAlgorithm.map { },
                 filterPoseInput.map { },
-                poseMissPenalty.map { },
                 gridCellSize.map { },
                 useLastPose.map { },
                 poseAlgorithm.map { },
@@ -226,7 +226,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         lineFilterInlierMax.value = DEFAULT_LINE_FILTER_INLIER_MAX
     }
     fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
-    fun resetPoseMissPenalty() { poseMissPenalty.value = DEFAULT_POSE_MISS_PENALTY }
     fun resetGridCellSize() { gridCellSize.value = DEFAULT_GRID_CELL_SIZE; rebuildGrid() }
     fun resetOccupancyOrientationSpan() { occupancyOrientationSpan.value = DEFAULT_OCCUPANCY_ORIENTATION_SPAN }
     fun resetOccupancyOrientationStep() { occupancyOrientationStep.value = DEFAULT_OCCUPANCY_ORIENTATION_STEP }
@@ -271,6 +270,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineMinPoints = lineMinPoints.value,
                 lineAngleTolerance = lineAngleTolerance.value,
                 lineGapTolerance = lineGapTolerance.value,
+                lineMergeEnabled = lineMergeEnabled.value,
                 lineFilterEnabled = lineFilterEnabled.value,
                 lineFilterLengthPercentile = lineFilterLengthPercentile.value,
                 lineFilterLengthFactor = lineFilterLengthFactor.value,
@@ -281,7 +281,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineFilterInlierMin = lineFilterInlierMin.value,
                 lineFilterInlierMax = lineFilterInlierMax.value,
                 lineAlgorithm = lineAlgorithm.value,
-                poseMissPenalty = poseMissPenalty.value,
                 showOccupancyGrid = showOccupancyGrid.value,
                 gridCellSize = gridCellSize.value,
                 useLastPose = useLastPose.value,
@@ -339,7 +338,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     lineFilterInlierMin.value = it.lineFilterInlierMin
                     lineFilterInlierMax.value = it.lineFilterInlierMax
                     lineAlgorithm.value = it.lineAlgorithm
-                    poseMissPenalty.value = it.poseMissPenalty
+                    lineMergeEnabled.value = it.lineMergeEnabled
                     showOccupancyGrid.value = it.showOccupancyGrid
                     gridCellSize.value = it.gridCellSize
                     useLastPose.value = it.useLastPose
@@ -368,7 +367,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 orientationSpan = occupancyOrientationSpan.value,
                 scaleRange = occupancyScaleMin.value..occupancyScaleMax.value,
                 scaleStep = occupancyScaleStep.value,
-                missPenalty = poseMissPenalty.value.toInt(),
                 initial = if (useLastPose.value) lastEstimate else null,
             )
             PoseAlgorithm.PARTICLE -> ParticlePoseEstimator.estimate(
@@ -376,7 +374,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 grid,
                 particles = particleCount.value,
                 iterations = particleIterations.value,
-                missPenalty = poseMissPenalty.value.toInt(),
             )
         }
         val durationNs = System.nanoTime() - start
@@ -538,6 +535,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 lineAngleTolerance.value,
                 lineGapTolerance.value,
                 lineAlgorithm.value,
+                lineMergeEnabled.value,
             )
             val (filteredLines, stats) = LineDetector.filterAdaptive(
                 lines,
