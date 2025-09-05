@@ -62,9 +62,6 @@ object OccupancyPoseEstimator {
      *
      * @param orientationStep orientation increment in degrees.
      * @param orientationSpan half angle around [initial] orientation to search.
-     * @param missPenalty penalty subtracted for each measurement that does not
-     * align with an occupied cell. Higher values increase sensitivity to
-     * obstructions.
      */
     suspend fun estimate(
         measurements: List<LidarMeasurement>,
@@ -73,7 +70,6 @@ object OccupancyPoseEstimator {
         orientationSpan: Int = 90,
         scaleRange: ClosedFloatingPointRange<Float> = 0.8f..1.2f,
         scaleStep: Float = 0.05f,
-        missPenalty: Int = 0,
         initial: Estimate? = null,
     ): EstimateResult = withContext(dispatcher) {
         if (measurements.isEmpty()) return@withContext EstimateResult(null, 0, -1)
@@ -133,7 +129,6 @@ object OccupancyPoseEstimator {
                             gridMaxX,
                             gridMaxY,
                             globalBest,
-                            missPenalty,
                         )
                         localCombinations += search.combinations
                         if (search.score > localBestScore) {
@@ -189,7 +184,6 @@ object OccupancyPoseEstimator {
         gridMaxX: Float,
         gridMaxY: Float,
         globalBest: AtomicInteger,
-        missPenalty: Int,
     ): SearchResult {
         var bestScore = -1
         var bestX = 0f
@@ -211,18 +205,17 @@ object OccupancyPoseEstimator {
                 while (x <= maxX) {
                     combinations++
                     var hits = 0
-                    var misses = 0
                     var remaining = xs.size
                     val global = globalBest.get()
                     var i = 0
                     while (i < xs.size) {
-                        if (grid.isOccupied(xs[i] + x, ys[i] + y)) hits++ else misses++
+                        if (grid.isOccupied(xs[i] + x, ys[i] + y)) hits++
                         remaining--
-                        val potential = hits + remaining - missPenalty * misses
+                        val potential = hits + remaining
                         if (potential <= max(bestScore, global)) break
                         i++
                     }
-                    val score = hits - missPenalty * misses
+                    val score = hits
                     if (score > bestScore) {
                         bestScore = score
                         bestX = x

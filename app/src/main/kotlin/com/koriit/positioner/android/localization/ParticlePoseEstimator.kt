@@ -28,8 +28,6 @@ object ParticlePoseEstimator {
      *
      * @param particles number of particles in the filter
      * @param iterations number of iterations to run
-     * @param missPenalty penalty subtracted for each measurement that does not
-     * align with a wall cell.
      * @param random source of randomness, exposed for deterministic testing
      */
     suspend fun estimate(
@@ -37,7 +35,6 @@ object ParticlePoseEstimator {
         grid: OccupancyGrid,
         particles: Int = 200,
         iterations: Int = 5,
-        missPenalty: Int = 0,
         random: Random = Random.Default,
     ): OccupancyPoseEstimator.EstimateResult = withContext(Dispatchers.Default) {
         if (measurements.isEmpty()) return@withContext OccupancyPoseEstimator.EstimateResult(null, 0, -1)
@@ -70,7 +67,7 @@ object ParticlePoseEstimator {
                 val orientRad = Math.toRadians(p.orientation.toDouble())
                 val cosA = cos(orientRad).toFloat()
                 val sinA = sin(orientRad).toFloat()
-                val score = scorePose(dx, dy, grid, p.x, p.y, cosA, sinA, missPenalty)
+                val score = scorePose(dx, dy, grid, p.x, p.y, cosA, sinA)
                 p.weight = score.coerceAtLeast(0).toFloat() + 1e-6f
                 totalWeight += p.weight
             }
@@ -103,7 +100,7 @@ object ParticlePoseEstimator {
             val orientRad = Math.toRadians(p.orientation.toDouble())
             val cosA = cos(orientRad).toFloat()
             val sinA = sin(orientRad).toFloat()
-            val score = scorePose(dx, dy, grid, p.x, p.y, cosA, sinA, missPenalty)
+            val score = scorePose(dx, dy, grid, p.x, p.y, cosA, sinA)
             if (score > bestScore) {
                 bestScore = score
                 best = p
@@ -121,13 +118,12 @@ object ParticlePoseEstimator {
         y: Float,
         cosA: Float,
         sinA: Float,
-        missPenalty: Int,
     ): Int {
         var score = 0
         for (i in dx.indices) {
             val worldX = x + cosA * dx[i] - sinA * dy[i]
             val worldY = y + sinA * dx[i] + cosA * dy[i]
-            if (grid.isOccupied(worldX, worldY)) score++ else score -= missPenalty
+            if (grid.isOccupied(worldX, worldY)) score++
         }
         return score
     }

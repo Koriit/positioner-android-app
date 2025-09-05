@@ -25,7 +25,7 @@ class OccupancyPoseEstimatorTest {
             val dist = profile[worldAngle] * scale
             measurements.add(LidarMeasurement(deg.toFloat(), (dist * 1000).toInt(), 200))
         }
-        val result = runBlocking { OccupancyPoseEstimator.estimate(measurements, grid, missPenalty = 1) }
+        val result = runBlocking { OccupancyPoseEstimator.estimate(measurements, grid) }
         val est = result.estimate!!
         println("Est: $est")
         assertEquals(scale, est.scale, 0.2f)
