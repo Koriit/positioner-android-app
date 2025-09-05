@@ -4,6 +4,14 @@ When enabled, incoming LiDAR measurements are grouped into linear features. Each
 
 The settings panel also allows toggling visualisation of raw measurements and detected lines.
 
+=== Algorithms
+
+Two algorithms are available:
+
+Cluster:: Groups consecutive measurements using linear regression. Works well on ordered data.
+
+RANSAC:: Randomly samples pairs of points to fit robust lines that ignore outliers.
+
 === Parameters
 
 Distance threshold:: Maximum perpendicular distance in metres a point may deviate from a candidate line.
