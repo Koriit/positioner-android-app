@@ -39,6 +39,13 @@ object LineDetector {
         val inliersPx: Double,
     )
 
+    /** Normalize orientation in degrees to the [0, 180) range. */
+    private fun normalizeOrientation(deg: Float): Float {
+        var angle = deg % 180f
+        if (angle < 0f) angle += 180f
+        return angle
+    }
+
     /**
      * Detect line features from [measurements].
      */
@@ -133,7 +140,7 @@ object LineDetector {
             val start = Pair(refx + minT * ux, refy + minT * uy)
             val end = Pair(refx + maxT * ux, refy + maxT * uy)
             val length = hypot(end.first - start.first, end.second - start.second)
-            val orientation = (angleRad * 180f / PI).toFloat()
+            val orientation = normalizeOrientation((angleRad * 180f / PI).toFloat())
             lines.add(LineFeature(start, end, orientation, length, cluster.size))
             cluster = mutableListOf()
             reg = SimpleRegression()
@@ -225,8 +232,7 @@ object LineDetector {
             val start = Pair(refx + minT * ux, refy + minT * uy)
             val end = Pair(refx + maxT * ux, refy + maxT * uy)
             val length = hypot(end.first - start.first, end.second - start.second)
-            var orientation = (angleRad * 180f / PI).toFloat()
-            if (orientation < 0f) orientation += 180f
+            val orientation = normalizeOrientation((angleRad * 180f / PI).toFloat())
             lines.add(LineFeature(start, end, orientation, length, bestInliers.size))
             remaining.removeAll(bestInliers.toSet())
         }
