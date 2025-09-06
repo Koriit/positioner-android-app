@@ -40,6 +40,21 @@ class LineDetectorTest {
     }
 
     @Test
+    fun normalizesVerticalLineOrientation() {
+        val points = mutableListOf<LidarMeasurement>()
+        for (y in -10..10 step 2) {
+            if (y == 0) continue
+            points.add(meas(0f, y / 10f))
+        }
+        val cluster = LineDetector.detect(points, 0.2f, 3, 10f, 10f, LineAlgorithm.CLUSTER)
+        assertEquals(1, cluster.size)
+        assertEquals(0f, cluster[0].orientation, 5f)
+        val ransac = LineDetector.detect(points, 0.2f, 3, 10f, 10f, LineAlgorithm.RANSAC)
+        assertEquals(1, ransac.size)
+        assertEquals(0f, ransac[0].orientation, 5f)
+    }
+
+    @Test
     fun filtersShortLines() {
         val lines = listOf(
             LineDetector.LineFeature(Pair(0f, 0f), Pair(1f, 0f), 0f, 1f, 2),

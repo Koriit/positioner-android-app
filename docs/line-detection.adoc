@@ -12,6 +12,8 @@ Cluster:: Groups consecutive measurements using linear regression. Works well on
 
 RANSAC:: Randomly samples pairs of points to fit robust lines that ignore outliers.
 
+All algorithms normalise line orientation to the [0, 180) range for consistent processing and display.
+
 === Parameters
 
 Distance threshold:: Maximum perpendicular distance in metres a point may deviate from a candidate line.
