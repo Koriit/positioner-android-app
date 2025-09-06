@@ -73,7 +73,7 @@ object LineDetector {
     private fun merge(lines: List<LineFeature>, angleTolerance: Float): List<LineFeature> {
         if (lines.size <= 1 || angleTolerance <= 0f) return lines
         val merged = mutableListOf<LineFeature>()
-        for (line in lines.sortedBy { it.orientation }) {
+        for (line in lines) {
             val last = merged.lastOrNull()
             if (last != null && abs(line.orientation - last.orientation) <= angleTolerance) {
                 val newLine = LineFeature(
@@ -181,15 +181,14 @@ object LineDetector {
         if (measurements.isEmpty()) return emptyList()
         val remaining = measurements.toMutableList()
         val lines = mutableListOf<LineFeature>()
-        val rand = kotlin.random.Random(0)
         while (remaining.size >= minPoints) {
             var bestInliers: List<LidarMeasurement> = emptyList()
             var bestA = 0f
             var bestB = 0f
             var bestC = 0f
             repeat(100) {
-                val p1 = remaining.random(rand)
-                var p2 = remaining.random(rand)
+                val p1 = remaining.random()
+                var p2 = remaining.random()
                 if (p1 === p2) return@repeat
                 val (x1, y1) = p1.toPoint()
                 val (x2, y2) = p2.toPoint()
