@@ -77,5 +77,11 @@ class LineDetectorTest {
         assertEquals(3.0, stats.lengthPx, 0.01)
         assertEquals(10.0, stats.inliersPx, 0.01)
     }
+
+    @Test
+    fun computesOrientationDifferenceAcrossWraparound() {
+        val diff = LineDetector.angleDiff180(1f, 179f)
+        assertEquals(2f, diff, 0.0001f)
+    }
 }
 

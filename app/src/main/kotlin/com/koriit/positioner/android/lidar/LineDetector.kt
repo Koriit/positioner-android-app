@@ -5,6 +5,7 @@ import org.apache.commons.math3.stat.regression.SimpleRegression
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot
+import kotlin.math.min
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlin.math.cos
@@ -47,6 +48,15 @@ object LineDetector {
     }
 
     /**
+     * Minimal difference between two line orientations in degrees.
+     * Orientations are directionless and wrap every 180°.
+     */
+    internal fun angleDiff180(a: Float, b: Float): Float {
+        val diff = (a - b).mod(180f)
+        return min(diff, 180f - diff)
+    }
+
+    /**
      * Detect line features from [measurements].
      */
     fun detect(
@@ -82,7 +92,7 @@ object LineDetector {
         val merged = mutableListOf<LineFeature>()
         for (line in lines) {
             val last = merged.lastOrNull()
-            if (last != null && abs(line.orientation - last.orientation) <= angleTolerance) {
+            if (last != null && angleDiff180(line.orientation, last.orientation) <= angleTolerance) {
                 val newLine = LineFeature(
                     last.start,
                     line.end,
