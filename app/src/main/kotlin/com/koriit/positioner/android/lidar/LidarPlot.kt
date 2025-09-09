@@ -141,17 +141,6 @@ fun LidarPlot(
                 }
             }
 
-            if (showLines) {
-                segments.forEach { (start, end) ->
-                    drawLine(
-                        color = Color.Magenta,
-                        start = Offset(start.first * scale, -start.second * scale),
-                        end = Offset(end.first * scale, -end.second * scale),
-                        strokeWidth = 2f,
-                    )
-                }
-            }
-
             if (showMeasurements) {
                 points.forEach { (x, y, confidence) ->
                     val px = x * scale
@@ -168,6 +157,17 @@ fun LidarPlot(
                     )
 
                     drawCircle(color, radius = 3f, center = Offset(px, py))
+                }
+            }
+
+            if (showLines) {
+                segments.forEach { (start, end) ->
+                    drawLine(
+                        color = Color.Magenta,
+                        start = Offset(start.first * scale, -start.second * scale),
+                        end = Offset(end.first * scale, -end.second * scale),
+                        strokeWidth = 3f,
+                    )
                 }
             }
 
