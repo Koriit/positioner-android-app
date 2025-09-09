@@ -68,7 +68,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_PARTICLE_COUNT = 200
         const val DEFAULT_PARTICLE_ITERATIONS = 5
         const val DEFAULT_SHOW_MEASUREMENTS = true
-        const val DEFAULT_SHOW_LINES = false
+        const val DEFAULT_SHOW_LINES = true
     }
 
     val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
