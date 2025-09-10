@@ -11,6 +11,9 @@ import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
 import com.koriit.positioner.android.lidar.LineDetector
 import com.koriit.positioner.android.lidar.LineAlgorithm
+import com.koriit.positioner.android.recording.Rotation
+import com.koriit.positioner.android.recording.SessionReader
+import com.koriit.positioner.android.recording.SessionWriter
 import com.koriit.positioner.android.localization.OccupancyGrid
 import com.koriit.positioner.android.localization.OccupancyPoseEstimator
 import com.koriit.positioner.android.localization.ParticlePoseEstimator
@@ -28,7 +31,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
-import kotlinx.datetime.Instant
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -133,7 +135,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private var replayRotationStarts: List<Long> = emptyList()
     private var readJob: Job? = null
 
-    private val sessionData = mutableListOf<LidarMeasurement>()
+    private var sessionWriter: SessionWriter? = null
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
     val lineFeatures = MutableStateFlow<List<LineDetector.LineFeature>>(emptyList())
@@ -190,11 +192,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         if (floorPlan.value.isNotEmpty()) return
         rotation.value += 90
     }
-    fun toggleRecording() {
-        if (replayMode.value) return
-        recording.value = !recording.value
+    fun startRecording(uri: Uri, context: Context) {
+        if (replayMode.value || recording.value) return
+        sessionWriter = SessionWriter.open(context, uri)
+        recording.value = sessionWriter != null
     }
-    fun clearSession() { sessionData.clear() }
+
+    fun stopRecording() {
+        sessionWriter?.close()
+        sessionWriter = null
+        recording.value = false
+    }
 
     fun resetGradientMin() { gradientMin.value = DEFAULT_GRADIENT_MIN }
     fun resetConfidenceThreshold() { confidenceThreshold.value = DEFAULT_CONFIDENCE_THRESHOLD }
@@ -384,32 +392,17 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         loadingReplay.value = true
         readJob?.cancel()
         viewModelScope.launch(Dispatchers.IO) {
-            val data = context.contentResolver.openInputStream(uri)?.use { input ->
-                Json.decodeFromStream<List<LidarMeasurement>>(input)
-            }
+            val rotations = SessionReader.read(context, uri)
             withContext(Dispatchers.Main) {
                 loadingReplay.value = false
-                if (data.isNullOrEmpty()) {
+                if (rotations.isEmpty()) {
                     startLiveReading()
                 } else {
-                    val firstMs = data.first().timestamp.toEpochMilliseconds()
-                    val rotations = mutableListOf<MutableList<LidarMeasurement>>()
-                    var current = mutableListOf<LidarMeasurement>()
-                    var lastAngle: Float? = null
-                    data.forEach { m ->
-                        lastAngle?.let { prev ->
-                            if (m.angle < prev) {
-                                rotations.add(current)
-                                current = mutableListOf()
-                            }
-                        }
-                        current.add(m)
-                        lastAngle = m.angle
-                    }
-                    if (current.isNotEmpty()) rotations.add(current)
-                    replayRotations = rotations
-                    replayRotationStarts = rotations.map { it.first().timestamp.toEpochMilliseconds() - firstMs }
-                    replayDurationMs.value = data.last().timestamp.toEpochMilliseconds() - firstMs
+                    val firstMs = rotations.first().start.toEpochMilliseconds()
+                    replayRotations = rotations.map { it.measurements }
+                    replayRotationStarts = rotations.map { it.start.toEpochMilliseconds() - firstMs }
+                    val lastMs = rotations.last().measurements.last().timestamp.toEpochMilliseconds()
+                    replayDurationMs.value = lastMs - firstMs
                     replayPositionMs.value = 0
                     replaySpeed.value = 1f
                     playing.value = true
@@ -462,14 +455,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         replayPositionMs.value = ms.coerceIn(0L, replayDurationMs.value)
         if (replayMode.value && playing.value && (readJob == null || !readJob!!.isActive)) {
             startReplay()
-        }
-    }
-
-    fun saveSession(uri: Uri, context: Context) {
-        context.contentResolver.openOutputStream(uri)?.use { out ->
-            val json = Json.encodeToString(sessionData)
-            sessionData.clear()
-            out.write(json.toByteArray())
         }
     }
 
@@ -569,7 +554,11 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
                         measurementsPerSecond.value = (rotation.size * rotationsPerSecond.value).toInt()
                         lastRotationTime = now
-                        if (recording.value) sessionData.addAll(rotation)
+                        if (recording.value) {
+                            withContext(Dispatchers.IO) {
+                                sessionWriter?.write(Rotation(rotation, rotation.first().timestamp))
+                            }
+                        }
                         processRotation(rotation)
                     }
                 } catch (e: Exception) {
