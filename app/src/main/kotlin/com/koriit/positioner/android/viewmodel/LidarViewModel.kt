@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.koriit.positioner.android.lidar.LidarMeasurement
+import com.koriit.positioner.android.gyro.GyroscopeMeasurement
+import com.koriit.positioner.android.gyro.GyroscopeReader
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
@@ -27,10 +29,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.datetime.Clock
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -66,6 +70,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_PARTICLE_ITERATIONS = 5
         const val DEFAULT_SHOW_MEASUREMENTS = true
         const val DEFAULT_SHOW_LINES = true
+        const val DEFAULT_GYROSCOPE_RATE = GyroscopeReader.DEFAULT_RATE_HZ
     }
 
     val rotation = MutableStateFlow(0)
@@ -131,7 +136,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     val loadingReplay = MutableStateFlow(false)
 
-    private var replayRotations: List<List<LidarMeasurement>> = emptyList()
+    private var replayRotations: List<Rotation> = emptyList()
     private var replayRotationStarts: List<Long> = emptyList()
     private var readJob: Job? = null
 
@@ -139,8 +144,14 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
     val lineFeatures = MutableStateFlow<List<LineDetector.LineFeature>>(emptyList())
-    private var lastRotation: List<LidarMeasurement> = emptyList()
+    private var lastRotation: Rotation? = null
     val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
+
+    val gyroscopeRate = MutableStateFlow(DEFAULT_GYROSCOPE_RATE)
+    enum class GyroscopeState { OK, NO_SENSOR, NO_PERMISSION, DISABLED }
+    val gyroscopeState = MutableStateFlow(GyroscopeState.NO_SENSOR)
+    private val gyroscopeBuffer = mutableListOf<GyroscopeMeasurement>()
+    private var gyroJob: Job? = null
 
     val measurementOrientation = MutableStateFlow(0f)
     val planScale = MutableStateFlow(1f)
@@ -152,6 +163,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private val lastPoseScores = ArrayDeque<Int>()
 
     init {
+        startGyroscope()
+        viewModelScope.launch { gyroscopeRate.collect { startGyroscope() } }
         startLiveReading()
         // When replay is paused and settings change reapply the last buffer so
         // the user immediately sees the effect of the new configuration.
@@ -233,6 +246,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun resetOccupancyScaleStep() { occupancyScaleStep.value = DEFAULT_OCCUPANCY_SCALE_STEP }
     fun resetParticleCount() { particleCount.value = DEFAULT_PARTICLE_COUNT }
     fun resetParticleIterations() { particleIterations.value = DEFAULT_PARTICLE_ITERATIONS }
+    fun resetGyroscopeRate() { gyroscopeRate.value = DEFAULT_GYROSCOPE_RATE }
 
     fun updateGridCellSize(size: Float) {
         gridCellSize.value = size
@@ -288,6 +302,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 occupancyScaleStep = occupancyScaleStep.value,
                 particleCount = particleCount.value,
                 particleIterations = particleIterations.value,
+                gyroscopeRate = gyroscopeRate.value,
             )
             context.contentResolver.openOutputStream(uri)?.use { out ->
                 val json = Json.encodeToString(settings)
@@ -343,6 +358,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     occupancyScaleStep.value = it.occupancyScaleStep
                     particleCount.value = it.particleCount
                     particleIterations.value = it.particleIterations
+                    gyroscopeRate.value = it.gyroscopeRate
                     rebuildGrid()
                 }
             }
@@ -399,7 +415,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     startLiveReading()
                 } else {
                     val firstMs = rotations.first().start.toEpochMilliseconds()
-                    replayRotations = rotations.map { it.measurements }
+                    replayRotations = rotations
                     replayRotationStarts = rotations.map { it.start.toEpochMilliseconds() - firstMs }
                     val lastMs = rotations.last().measurements.last().timestamp.toEpochMilliseconds()
                     replayDurationMs.value = lastMs - firstMs
@@ -445,7 +461,10 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         val currentIdx = findRotationIndex(replayPositionMs.value)
         val targetIdx = (currentIdx + direction).coerceIn(0, replayRotations.size - 1)
         replayPositionMs.value = replayRotationStarts[targetIdx]
-        viewModelScope.launch { processRotation(replayRotations[targetIdx]) }
+        viewModelScope.launch {
+            val rot = replayRotations[targetIdx]
+            processRotation(rot.measurements, rot.gyroscope)
+        }
     }
 
     /**
@@ -476,8 +495,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    private suspend fun processRotation(raw: List<LidarMeasurement>) {
-        lastRotation = raw
+    private suspend fun processRotation(raw: List<LidarMeasurement>, gyro: List<GyroscopeMeasurement> = emptyList()) {
+        lastRotation = Rotation(raw, Clock.System.now(), gyro)
         val filtered = MeasurementFilter.apply(
             raw,
             confidenceThreshold.value.toInt(),
@@ -527,9 +546,36 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     }
 
     private suspend fun reapplyCurrentRotation() {
-        if (replayMode.value && !playing.value && lastRotation.isNotEmpty()) {
-            processRotation(lastRotation)
+        val rotation = lastRotation
+        if (replayMode.value && !playing.value && rotation != null) {
+            processRotation(rotation.measurements, rotation.gyroscope)
         }
+    }
+
+    private fun startGyroscope() {
+        gyroJob?.cancel()
+        gyroJob = viewModelScope.launch(Dispatchers.Default) {
+            when (val result = GyroscopeReader.open(context, gyroscopeRate.value)) {
+                is GyroscopeReader.OpenResult.NoSensor -> gyroscopeState.value = GyroscopeState.NO_SENSOR
+                is GyroscopeReader.OpenResult.NoPermission -> gyroscopeState.value = GyroscopeState.NO_PERMISSION
+                is GyroscopeReader.OpenResult.Success -> {
+                    gyroscopeState.value = GyroscopeState.OK
+                    result.reader.measurements()
+                        .catch { e ->
+                            gyroscopeState.value = if (e is SecurityException) GyroscopeState.NO_PERMISSION else GyroscopeState.DISABLED
+                        }
+                        .collect { m ->
+                            synchronized(gyroscopeBuffer) { gyroscopeBuffer.add(m) }
+                        }
+                }
+            }
+        }
+    }
+
+    private fun drainGyroscope(): List<GyroscopeMeasurement> = synchronized(gyroscopeBuffer) {
+        val copy = gyroscopeBuffer.toList()
+        gyroscopeBuffer.clear()
+        copy
     }
 
     private fun startLiveReading() {
@@ -554,12 +600,13 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
                         measurementsPerSecond.value = (rotation.size * rotationsPerSecond.value).toInt()
                         lastRotationTime = now
+                        val gyro = drainGyroscope()
                         if (recording.value) {
                             withContext(Dispatchers.IO) {
-                                sessionWriter?.write(Rotation(rotation, rotation.first().timestamp))
+                                sessionWriter?.write(Rotation(rotation, rotation.first().timestamp, gyro))
                             }
                         }
-                        processRotation(rotation)
+                        processRotation(rotation, gyro)
                     }
                 } catch (e: Exception) {
                     usbConnected.value = false
@@ -596,9 +643,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 val nextStart = replayRotationStarts.getOrNull(index + 1)
                 val duration = (nextStart ?: (startMs + 1)) - startMs
                 rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
-                measurementsPerSecond.value = (rotation.size * rotationsPerSecond.value).toInt()
+                measurementsPerSecond.value = (rotation.measurements.size * rotationsPerSecond.value).toInt()
                 replayPositionMs.value = startMs
-                processRotation(rotation)
+                processRotation(rotation.measurements, rotation.gyroscope)
                 if (nextStart != null) {
                     val delayMs = ((nextStart - startMs) / replaySpeed.value).toLong()
                     delay(delayMs)

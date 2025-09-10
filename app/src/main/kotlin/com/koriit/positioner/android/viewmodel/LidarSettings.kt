@@ -1,5 +1,6 @@
 package com.koriit.positioner.android.viewmodel
 
+import com.koriit.positioner.android.gyro.GyroscopeReader
 import com.koriit.positioner.android.localization.PoseAlgorithm
 import com.koriit.positioner.android.lidar.LineAlgorithm
 import kotlinx.serialization.Serializable
@@ -46,4 +47,5 @@ data class LidarSettings(
     val occupancyScaleStep: Float = LidarViewModel.DEFAULT_OCCUPANCY_SCALE_STEP,
     val particleCount: Int = LidarViewModel.DEFAULT_PARTICLE_COUNT,
     val particleIterations: Int = LidarViewModel.DEFAULT_PARTICLE_ITERATIONS,
+    val gyroscopeRate: Int = GyroscopeReader.DEFAULT_RATE_HZ,
 )
