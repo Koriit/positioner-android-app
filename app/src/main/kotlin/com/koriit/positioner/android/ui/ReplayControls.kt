@@ -41,12 +41,12 @@ fun ReplayControls(vm: LidarViewModel) {
             onReset = { vm.seekTo(0L) }
         )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { vm.stepBuffer(-1) }, enabled = !playing) {
-                Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous buffer")
+            IconButton(onClick = { vm.stepRotation(-1) }, enabled = !playing) {
+                Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous rotation")
             }
             Button(onClick = { vm.togglePlay() }) { Text(if (playing) "Pause" else "Play") }
-            IconButton(onClick = { vm.stepBuffer(1) }, enabled = !playing) {
-                Icon(Icons.Filled.SkipNext, contentDescription = "Next buffer")
+            IconButton(onClick = { vm.stepRotation(1) }, enabled = !playing) {
+                Icon(Icons.Filled.SkipNext, contentDescription = "Next rotation")
             }
             IconButton(onClick = { vm.changeSpeed(0.5f) }) {
                 Icon(Icons.Filled.FastRewind, contentDescription = "Slower")

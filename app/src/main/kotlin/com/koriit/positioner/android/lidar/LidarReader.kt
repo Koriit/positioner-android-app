@@ -8,16 +8,16 @@ import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import java.util.ArrayList
 
 /**
  * Continuously read measurement packets from the serial port and emit
  * individual measurements as a [Flow]. The implementation searches for
  * packet headers (0x54, 0x2C) and uses [LidarParser] to decode the packet.
  */
-class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
+class LidarReader(private val port: UsbSerialPort) {
     private val parser = LidarParser()
 
     private enum class State { SYNC0, SYNC1, SYNC2 }
@@ -84,17 +84,30 @@ class LidarReader(private val port: UsbSerialPort) : LidarDataSource {
         }
     }
 
-    // Refactored measurements() to use byteStream instead of directly reading port
-    override fun measurements(): Flow<LidarMeasurement> = flow {
+    // Stream full rotations of measurements based on angle wrap.
+    fun rotations(): Flow<List<LidarMeasurement>> = flow {
         val packet = ByteArray(47)
         val header0 = 0x54.toByte()
         val header1 = 0x2C.toByte()
 
-        suspend fun FlowCollector<LidarMeasurement>.emitPacket(packet: ByteArray) {
+        val current = ArrayList<LidarMeasurement>()
+        var lastAngle: Float? = null
+
+        suspend fun handleMeasurement(m: LidarMeasurement) {
+            lastAngle?.let { prev ->
+                if (m.angle < prev && current.isNotEmpty()) {
+                    emit(current.toList())
+                    current.clear()
+                }
+            }
+            current.add(m)
+            lastAngle = m.angle
+        }
+
+        suspend fun emitPacket(packet: ByteArray) {
             try {
                 val measures = parser.parse(packet)
-//                AppLog.d(TAG, "Parsed packet with ${measures.size} measurements")
-                measures.forEach { emit(it) }
+                measures.forEach { handleMeasurement(it) }
             } catch (e: IllegalArgumentException) {
                 AppLog.d(TAG, "Malformed packet", e)
             }

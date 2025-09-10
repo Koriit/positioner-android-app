@@ -5,8 +5,6 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.koriit.positioner.android.lidar.FakeLidarReader
-import com.koriit.positioner.android.lidar.LidarDataSource
 import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.lidar.LidarReader
 import com.koriit.positioner.android.lidar.MeasurementFilter
@@ -24,7 +22,6 @@ import com.google.firebase.crashlytics.ktx.crashlytics
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
@@ -38,8 +35,6 @@ import kotlinx.serialization.json.decodeFromStream
 
 class LidarViewModel(private val context: Context) : ViewModel() {
     companion object {
-        const val DEFAULT_FLUSH_INTERVAL_MS = 50f
-        const val DEFAULT_BUFFER_SIZE = 456
         const val DEFAULT_CONFIDENCE_THRESHOLD = 210f
         const val DEFAULT_GRADIENT_MIN = 180f
         const val DEFAULT_MIN_DISTANCE = 0.5f
@@ -71,15 +66,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_SHOW_LINES = true
     }
 
-    val flushIntervalMs = MutableStateFlow(DEFAULT_FLUSH_INTERVAL_MS)
     val rotation = MutableStateFlow(0)
     val autoScale = MutableStateFlow(true)
     val showLogs = MutableStateFlow(false)
     val showMeasurements = MutableStateFlow(DEFAULT_SHOW_MEASUREMENTS)
     val showLines = MutableStateFlow(DEFAULT_SHOW_LINES)
     val filterPoseInput = MutableStateFlow(true)
-    val bufferSize = MutableStateFlow(DEFAULT_BUFFER_SIZE)
-    val matchRotation = MutableStateFlow(true)
     val recording = MutableStateFlow(false)
     val confidenceThreshold = MutableStateFlow(DEFAULT_CONFIDENCE_THRESHOLD)
     val gradientMin = MutableStateFlow(DEFAULT_GRADIENT_MIN)
@@ -137,14 +129,15 @@ class LidarViewModel(private val context: Context) : ViewModel() {
 
     val loadingReplay = MutableStateFlow(false)
 
-    private var replayData: List<LidarMeasurement> = emptyList()
+    private var replayRotations: List<List<LidarMeasurement>> = emptyList()
+    private var replayRotationStarts: List<Long> = emptyList()
     private var readJob: Job? = null
 
     private val sessionData = mutableListOf<LidarMeasurement>()
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
     val lineFeatures = MutableStateFlow<List<LineDetector.LineFeature>>(emptyList())
-    private var lastBuffer: List<LidarMeasurement> = emptyList()
+    private var lastRotation: List<LidarMeasurement> = emptyList()
     val floorPlan = MutableStateFlow<List<List<Pair<Float, Float>>>>(emptyList())
 
     val measurementOrientation = MutableStateFlow(0f)
@@ -184,7 +177,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 occupancyScaleStep.map { },
                 particleCount.map { },
                 particleIterations.map { },
-            ).collect { reapplyCurrentBuffer() }
+            ).collect { reapplyCurrentRotation() }
         }
     }
 
@@ -203,7 +196,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     }
     fun clearSession() { sessionData.clear() }
 
-    fun resetFlushInterval() { flushIntervalMs.value = DEFAULT_FLUSH_INTERVAL_MS }
     fun resetGradientMin() { gradientMin.value = DEFAULT_GRADIENT_MIN }
     fun resetConfidenceThreshold() { confidenceThreshold.value = DEFAULT_CONFIDENCE_THRESHOLD }
     fun resetMinDistance() { minDistance.value = DEFAULT_MIN_DISTANCE }
@@ -225,7 +217,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         lineFilterInlierMin.value = DEFAULT_LINE_FILTER_INLIER_MIN
         lineFilterInlierMax.value = DEFAULT_LINE_FILTER_INLIER_MAX
     }
-    fun resetBufferSize() { bufferSize.value = DEFAULT_BUFFER_SIZE }
     fun resetGridCellSize() { gridCellSize.value = DEFAULT_GRID_CELL_SIZE; rebuildGrid() }
     fun resetOccupancyOrientationSpan() { occupancyOrientationSpan.value = DEFAULT_OCCUPANCY_ORIENTATION_SPAN }
     fun resetOccupancyOrientationStep() { occupancyOrientationStep.value = DEFAULT_OCCUPANCY_ORIENTATION_STEP }
@@ -257,9 +248,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 showMeasurements = showMeasurements.value,
                 showLines = showLines.value,
                 filterPoseInput = filterPoseInput.value,
-                bufferSize = bufferSize.value,
-                flushIntervalMs = flushIntervalMs.value,
-                matchRotation = matchRotation.value,
                 confidenceThreshold = confidenceThreshold.value,
                 gradientMin = gradientMin.value,
                 minDistance = minDistance.value,
@@ -315,9 +303,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     showMeasurements.value = it.showMeasurements
                     showLines.value = it.showLines
                     filterPoseInput.value = it.filterPoseInput
-                    bufferSize.value = it.bufferSize
-                    flushIntervalMs.value = it.flushIntervalMs
-                    matchRotation.value = it.matchRotation
                     confidenceThreshold.value = it.confidenceThreshold
                     gradientMin.value = it.gradientMin
                     minDistance.value = it.minDistance
@@ -407,10 +392,24 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 if (data.isNullOrEmpty()) {
                     startLiveReading()
                 } else {
-                    replayData = data
-                    replayDurationMs.value =
-                        replayData.last().timestamp.toEpochMilliseconds() -
-                            replayData.first().timestamp.toEpochMilliseconds()
+                    val firstMs = data.first().timestamp.toEpochMilliseconds()
+                    val rotations = mutableListOf<MutableList<LidarMeasurement>>()
+                    var current = mutableListOf<LidarMeasurement>()
+                    var lastAngle: Float? = null
+                    data.forEach { m ->
+                        lastAngle?.let { prev ->
+                            if (m.angle < prev) {
+                                rotations.add(current)
+                                current = mutableListOf()
+                            }
+                        }
+                        current.add(m)
+                        lastAngle = m.angle
+                    }
+                    if (current.isNotEmpty()) rotations.add(current)
+                    replayRotations = rotations
+                    replayRotationStarts = rotations.map { it.first().timestamp.toEpochMilliseconds() - firstMs }
+                    replayDurationMs.value = data.last().timestamp.toEpochMilliseconds() - firstMs
                     replayPositionMs.value = 0
                     replaySpeed.value = 1f
                     playing.value = true
@@ -424,7 +423,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     fun exitReplay() {
         replayMode.value = false
         playing.value = false
-        replayData = emptyList()
+        replayRotations = emptyList()
+        replayRotationStarts = emptyList()
         replayPositionMs.value = 0
         _measurements.value = emptyList()
         loadingReplay.value = false
@@ -447,26 +447,16 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         if (replayMode.value) startReplay()
     }
 
-    fun stepBuffer(direction: Int) {
-        if (!replayMode.value) return
-        val currentIdx = findIndexForPosition(replayPositionMs.value)
-        val targetIdx = (currentIdx + direction * bufferSize.value)
-            .coerceIn(0, replayData.size - 1)
-        val startIdx = (targetIdx - bufferSize.value + 1).coerceAtLeast(0)
-        val slice = replayData.subList(startIdx, targetIdx + 1)
-        val firstMs = replayData.first().timestamp.toEpochMilliseconds()
-        replayPositionMs.value =
-            replayData[targetIdx].timestamp.toEpochMilliseconds() - firstMs
-        viewModelScope.launch { flushBuffer(ArrayDeque(slice)) }
+    fun stepRotation(direction: Int) {
+        if (!replayMode.value || replayRotations.isEmpty()) return
+        val currentIdx = findRotationIndex(replayPositionMs.value)
+        val targetIdx = (currentIdx + direction).coerceIn(0, replayRotations.size - 1)
+        replayPositionMs.value = replayRotationStarts[targetIdx]
+        viewModelScope.launch { processRotation(replayRotations[targetIdx]) }
     }
 
     /**
      * Seek to the requested timestamp within the loaded replay.
-     *
-     * Unlike the previous implementation this does not restart the replay
-     * coroutine on every value change. The running replay loop observes
-     * [replayPositionMs] and jumps to the requested frame when it changes so
-     * dragging the UI slider results in immediate feedback.
      */
     fun seekTo(ms: Long) {
         replayPositionMs.value = ms.coerceIn(0L, replayDurationMs.value)
@@ -501,21 +491,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    /**
-     * Flush the measurement [buffer] by applying filters, updating observed
-     * flows and optionally adjusting automatic buffer settings.
-     *
-     * @param buffer data to process
-     * @param updateAuto update buffer size and interval when `true`
-     * @param durationMs optional time to use as new flush interval
-     */
-    private suspend fun flushBuffer(
-        buffer: ArrayDeque<LidarMeasurement>,
-        updateAuto: Boolean = false,
-        durationMs: Float? = null,
-    ) {
-        val raw = buffer.toList()
-        lastBuffer = raw
+    private suspend fun processRotation(raw: List<LidarMeasurement>) {
+        lastRotation = raw
         val filtered = MeasurementFilter.apply(
             raw,
             confidenceThreshold.value.toInt(),
@@ -562,50 +539,18 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             if (filterPoseInput.value) filtered else raw
         }
         updateTransform(poseInput)
-        if (updateAuto) {
-            bufferSize.value = raw.size
-            durationMs?.let { flushIntervalMs.value = it }
-        }
-        buffer.clear()
     }
 
-    private suspend fun reapplyCurrentBuffer() {
-        if (replayMode.value && !playing.value && lastBuffer.isNotEmpty()) {
-            flushBuffer(ArrayDeque(lastBuffer))
-        }
-    }
-
-    /**
-     * Ensure the [buffer] matches the latest configured size and return the
-     * effective capacity.
-     */
-    private fun ensureBufferSize(
-        buffer: ArrayDeque<LidarMeasurement>,
-        currentSize: Int,
-    ): Int {
-        return if (bufferSize.value != currentSize) {
-            buffer.clear()
-            bufferSize.value
-        } else {
-            currentSize
+    private suspend fun reapplyCurrentRotation() {
+        if (replayMode.value && !playing.value && lastRotation.isNotEmpty()) {
+            processRotation(lastRotation)
         }
     }
 
     private fun startLiveReading() {
         readJob?.cancel()
-        // Run the long running read loop on a background dispatcher so heavy
-        // filtering does not block the UI thread. MutableStateFlow is
-        // thread-safe so updates from a background coroutine are safe.
         readJob = viewModelScope.launch(Dispatchers.Default) {
-            val buffer = ArrayDeque<LidarMeasurement>()
-            var lastFlush = System.currentTimeMillis()
-            var lastSecond = System.currentTimeMillis()
-            var count = 0
-            var angleAccum = 0f
-            var lastAngle: Float? = null
-            var currentBufferSize = bufferSize.value
-            var rotationStart = System.currentTimeMillis()
-            var samplesInRotation = 0
+            var lastRotationTime = System.currentTimeMillis()
             while (true) {
                 val source = withContext(Dispatchers.IO) { LidarReader.openDefault(context) }
                 if (source == null) {
@@ -618,46 +563,14 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 }
                 usbConnected.value = true
                 try {
-                    source.measurements().flowOn(Dispatchers.IO).collect { m ->
+                    source.rotations().collect { rotation ->
                         val now = System.currentTimeMillis()
-                        if (matchRotation.value) {
-                            lastAngle?.let { prev ->
-                                if (m.angle < prev) {
-                                    val duration = (now - rotationStart).toFloat()
-                                    val rotationSamples = samplesInRotation
-                                    flushBuffer(buffer)
-                                    bufferSize.value = rotationSamples
-                                    flushIntervalMs.value = duration
-                                    currentBufferSize = bufferSize.value
-                                    rotationStart = now
-                                    samplesInRotation = 0
-                                }
-                            }
-                            samplesInRotation++
-                        } else {
-                            currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
-                            if (buffer.size >= currentBufferSize) buffer.removeFirst()
-                            if (now - lastFlush >= flushIntervalMs.value.toLong()) {
-                                lastFlush = now
-                                flushBuffer(buffer)
-                            }
-                        }
-                        buffer.addLast(m)
-                        if (recording.value) sessionData.add(m)
-                        lastAngle?.let { prev ->
-                            var diff = m.angle - prev
-                            if (diff < 0f) diff += 360f
-                            angleAccum += diff
-                        }
-                        lastAngle = m.angle
-                        count++
-                        if (now - lastSecond >= 1000) {
-                            measurementsPerSecond.value = count
-                            rotationsPerSecond.value = angleAccum / 360f
-                            angleAccum = 0f
-                            count = 0
-                            lastSecond = now
-                        }
+                        val duration = now - lastRotationTime
+                        rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
+                        measurementsPerSecond.value = (rotation.size * rotationsPerSecond.value).toInt()
+                        lastRotationTime = now
+                        if (recording.value) sessionData.addAll(rotation)
+                        processRotation(rotation)
                     }
                 } catch (e: Exception) {
                     usbConnected.value = false
@@ -672,103 +585,38 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
-    private fun findIndexForPosition(ms: Long): Int {
-        if (replayData.isEmpty()) return 0
-        val start = replayData.first().timestamp.toEpochMilliseconds()
-        val target = start + ms
-        val idx = replayData.binarySearch { it.timestamp.toEpochMilliseconds().compareTo(target) }
+    private fun findRotationIndex(ms: Long): Int {
+        if (replayRotationStarts.isEmpty()) return 0
+        val idx = replayRotationStarts.binarySearch(ms)
         return if (idx >= 0) idx else -idx - 1
     }
 
     private fun startReplay() {
         readJob?.cancel()
-        // Replay processing can be CPU intensive with large recordings, so run
-        // the loop on a background dispatcher to keep the UI responsive.
         readJob = viewModelScope.launch(Dispatchers.Default) {
-            val buffer = ArrayDeque<LidarMeasurement>()
-            val firstMs = replayData.first().timestamp.toEpochMilliseconds()
-            var lastSeek = replayPositionMs.value
-            var index = findIndexForPosition(lastSeek)
-            var lastFlushPos = lastSeek
-            var lastSecondPos = lastSeek
-            var count = 0
-            var angleAccum = 0f
-            var lastAngle: Float? = null
-            var currentBufferSize = bufferSize.value
-            var rotationStartPos = lastSeek
-            var samplesInRotation = 0
-            while (replayMode.value && index < replayData.size) {
+            val firstMs = replayRotationStarts.firstOrNull() ?: 0L
+            var index = findRotationIndex(replayPositionMs.value)
+            var lastStart = if (index < replayRotationStarts.size) replayRotationStarts[index] else firstMs
+            while (replayMode.value && index < replayRotations.size) {
                 if (!playing.value) {
                     delay(50)
                     continue
                 }
-                val desired = replayPositionMs.value
-                if (desired != lastSeek) {
-                    index = findIndexForPosition(desired)
-                    buffer.clear()
-                    lastAngle = null
-                    lastSeek = desired
-                    rotationStartPos = desired
-                    lastFlushPos = desired
-                    lastSecondPos = desired
-                    samplesInRotation = 0
+                val rotation = replayRotations[index]
+                val startMs = replayRotationStarts[index]
+                val nextStart = replayRotationStarts.getOrNull(index + 1)
+                val duration = (nextStart ?: (startMs + 1)) - startMs
+                rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
+                measurementsPerSecond.value = (rotation.size * rotationsPerSecond.value).toInt()
+                replayPositionMs.value = startMs
+                processRotation(rotation)
+                if (nextStart != null) {
+                    val delayMs = ((nextStart - startMs) / replaySpeed.value).toLong()
+                    delay(delayMs)
                 }
-                val m = replayData[index]
-                val pos = m.timestamp.toEpochMilliseconds() - firstMs
-                if (matchRotation.value) {
-                    lastAngle?.let { prev ->
-                        if (m.angle < prev) {
-                            val duration = (pos - rotationStartPos).toFloat()
-                            val rotationSamples = samplesInRotation
-                            flushBuffer(buffer)
-                            bufferSize.value = rotationSamples
-                            flushIntervalMs.value = duration
-                            currentBufferSize = bufferSize.value
-                            rotationStartPos = pos
-                            samplesInRotation = 0
-                        }
-                    }
-                    samplesInRotation++
-                } else {
-                    currentBufferSize = ensureBufferSize(buffer, currentBufferSize)
-                    if (buffer.size >= currentBufferSize) buffer.removeFirst()
-                    if (pos - lastFlushPos >= flushIntervalMs.value.toLong()) {
-                        lastFlushPos = pos
-                        flushBuffer(buffer)
-                    }
-                }
-                buffer.addLast(m)
-                lastAngle?.let { prev ->
-                    var diff = m.angle - prev
-                    if (diff < 0f) diff += 360f
-                    angleAccum += diff
-                }
-                lastAngle = m.angle
-                count++
-                if (pos - lastSecondPos >= 1000) {
-                    measurementsPerSecond.value = count
-                    rotationsPerSecond.value = angleAccum / 360f
-                    angleAccum = 0f
-                    count = 0
-                    lastSecondPos = pos
-                }
-
-                val currentPos = m.timestamp.toEpochMilliseconds() - firstMs
-                replayPositionMs.value = currentPos
-                lastSeek = currentPos
+                lastStart = startMs
                 index++
-                if (index >= replayData.size) break
-                val nextDiff = replayData[index].timestamp.toEpochMilliseconds() -
-                    m.timestamp.toEpochMilliseconds()
-                // Ignore zero or negative delays which appear in some recordings
-                // to avoid tight loops and absurd measurement rates
-                val delayMs = (nextDiff / replaySpeed.value).toLong()
-                if (delayMs > 0) delay(delayMs) else continue
             }
-            // Flush remaining data so the final frame appears
-            flushBuffer(buffer)
-            // Mark playback finished so UI values like measurements per second
-            // reset once the dataset ends.
             withContext(Dispatchers.Main) {
                 playing.value = false
                 rotationsPerSecond.value = 0f

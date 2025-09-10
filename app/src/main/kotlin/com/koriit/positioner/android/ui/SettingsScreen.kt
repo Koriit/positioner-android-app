@@ -55,9 +55,6 @@ fun SettingsPanel(
     val showMeasurements by vm.showMeasurements.collectAsState()
     val showLines by vm.showLines.collectAsState()
     val filterPoseInput by vm.filterPoseInput.collectAsState()
-    val bufferSize by vm.bufferSize.collectAsState()
-    val flushInterval by vm.flushIntervalMs.collectAsState()
-    val matchRotation by vm.matchRotation.collectAsState()
     val confidence by vm.confidenceThreshold.collectAsState()
     val gradientMin by vm.gradientMin.collectAsState()
     val minDistance by vm.minDistance.collectAsState()
@@ -119,30 +116,6 @@ fun SettingsPanel(
             Checkbox(checked = showGrid, onCheckedChange = { vm.showOccupancyGrid.value = it })
             Text("Show occupancy grid")
         }
-        Divider()
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text("LiDAR", style = MaterialTheme.typography.titleMedium)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = matchRotation, onCheckedChange = { vm.matchRotation.value = it })
-            Text("Match buffer to rotation")
-        }
-        Text("Flush interval: ${flushInterval.toInt()} ms")
-        SliderWithActions(
-            value = flushInterval,
-            onValueChange = { vm.flushIntervalMs.value = it },
-            valueRange = 50f..1000f,
-            onReset = { vm.resetFlushInterval() },
-            enabled = !matchRotation,
-        )
-        Text("Buffer size: $bufferSize")
-        SliderWithActions(
-            value = bufferSize.toFloat(),
-            onValueChange = { vm.bufferSize.value = it.toInt() },
-            valueRange = 100f..1000f,
-            onReset = { vm.resetBufferSize() },
-            enabled = !matchRotation,
-        )
         Divider()
         Spacer(modifier = Modifier.height(8.dp))
 

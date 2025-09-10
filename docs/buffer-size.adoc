@@ -1,7 +1,0 @@
-== Measurement buffer size
-
-The settings panel includes a slider that controls how many lidar data points are kept in memory and displayed on the plot.
-Increasing the value shows more history but uses more memory. The default is 480 points.
-
-Enabling *Match buffer to rotation* adjusts the buffer size and flush interval automatically so each flush contains one full LiDAR rotation. Data is emitted whenever the angle resets.
-Sample counts are tracked for each rotation so the buffer expands to the correct size after a full turn even if playback starts mid-rotation.
