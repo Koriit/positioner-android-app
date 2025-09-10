@@ -572,6 +572,11 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         }
     }
 
+    /**
+     * Restart gyroscope readings, typically after permissions change.
+     */
+    fun refreshGyroscope() = startGyroscope()
+
     private fun drainGyroscope(): List<GyroscopeMeasurement> = synchronized(gyroscopeBuffer) {
         val copy = gyroscopeBuffer.toList()
         gyroscopeBuffer.clear()

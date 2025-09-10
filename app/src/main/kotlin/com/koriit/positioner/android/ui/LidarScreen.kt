@@ -1,18 +1,20 @@
 package com.koriit.positioner.android.ui
 
+import android.Manifest
+import android.content.res.Configuration
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,8 +71,16 @@ fun LidarScreen(vm: LidarViewModel) {
     val lineInlierPx by vm.lineInlierPx.collectAsState()
     val lengthPercentile by vm.lineFilterLengthPercentile.collectAsState()
     val inlierPercentile by vm.lineFilterInlierPercentile.collectAsState()
+    val gyroscopeState by vm.gyroscopeState.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { perms ->
+        if (perms.values.all { it }) {
+            vm.refreshGyroscope()
+        }
+    }
     val recordLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gzip")) { uri ->
         uri?.let { vm.startRecording(it, context) }
     }
@@ -88,6 +98,17 @@ fun LidarScreen(vm: LidarViewModel) {
     }
 
     var showSettings by remember { mutableStateOf(false) }
+
+    LaunchedEffect(gyroscopeState) {
+        if (gyroscopeState == LidarViewModel.GyroscopeState.NO_PERMISSION) {
+            permissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.BODY_SENSORS,
+                    Manifest.permission.HIGH_SAMPLING_RATE_SENSORS,
+                )
+            )
+        }
+    }
 
     val gradientMin by vm.gradientMin.collectAsState()
     val mps by vm.measurementsPerSecond.collectAsState()
