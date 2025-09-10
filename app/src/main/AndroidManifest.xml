@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.hardware.usb.host" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <uses-permission android:name="android.permission.BODY_SENSORS" />
+    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
     <application
         android:label="Positioner App"
         android:theme="@style/Theme.Positioner">

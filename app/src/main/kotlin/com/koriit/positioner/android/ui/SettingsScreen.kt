@@ -34,6 +34,7 @@ import com.koriit.positioner.android.ui.SliderWithActions
 import com.koriit.positioner.android.viewmodel.LidarViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import com.koriit.positioner.android.gyro.GyroscopeReader
 
 /**
  * Panel displaying configurable LiDAR options.
@@ -77,6 +78,7 @@ fun SettingsPanel(
     val lineFilterInlierMax by vm.lineFilterInlierMax.collectAsState()
     val lineAlgorithm by vm.lineAlgorithm.collectAsState()
     val showGrid by vm.showOccupancyGrid.collectAsState()
+    val gyroscopeRate by vm.gyroscopeRate.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
     val useLastPose by vm.useLastPose.collectAsState()
     val poseAlgorithm by vm.poseAlgorithm.collectAsState()
@@ -116,6 +118,17 @@ fun SettingsPanel(
             Checkbox(checked = showGrid, onCheckedChange = { vm.showOccupancyGrid.value = it })
             Text("Show occupancy grid")
         }
+        Divider()
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text("Gyroscope", style = MaterialTheme.typography.titleMedium)
+        Text("Sampling rate: ${gyroscopeRate} Hz")
+        SliderWithActions(
+            value = gyroscopeRate.toFloat(),
+            onValueChange = { vm.gyroscopeRate.value = it.toInt() },
+            valueRange = GyroscopeReader.MIN_RATE_HZ.toFloat()..400f,
+            onReset = { vm.resetGyroscopeRate() }
+        )
         Divider()
         Spacer(modifier = Modifier.height(8.dp))
 
