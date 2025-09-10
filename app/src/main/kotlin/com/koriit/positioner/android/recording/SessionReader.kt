@@ -5,6 +5,7 @@ import android.net.Uri
 import com.koriit.positioner.android.lidar.LidarMeasurement
 import java.io.InputStream
 import java.util.zip.GZIPInputStream
+import kotlin.io.buffered
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
@@ -21,8 +22,9 @@ object SessionReader {
         return emptyList()
     }
 
-    private fun read(input: InputStream): List<Rotation> {
-        val stream = if (isGzip(input)) GZIPInputStream(input) else input
+    internal fun read(input: InputStream): List<Rotation> {
+        val buffered = input.buffered()
+        val stream = if (isGzip(buffered)) GZIPInputStream(buffered) else buffered
         val content = stream.bufferedReader().use { it.readText() }
         val trimmed = content.trimStart()
         return if (trimmed.startsWith("[")) {
