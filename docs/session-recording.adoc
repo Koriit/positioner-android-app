@@ -1,0 +1,9 @@
+== Session recording
+
+Recordings are saved as gzip-compressed NDJSON files. Each line contains a JSON
+object describing a single LiDAR rotation with its measurements and start
+timestamp. The format is easily extendable so future attributes can be added
+without breaking compatibility.
+
+Older recordings stored as a plain JSON array of measurements are still
+supported and are automatically converted when loaded.

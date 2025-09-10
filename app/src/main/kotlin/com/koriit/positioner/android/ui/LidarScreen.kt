@@ -1,6 +1,5 @@
 package com.koriit.positioner.android.ui
 
-import android.content.Context
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -72,8 +71,8 @@ fun LidarScreen(vm: LidarViewModel) {
     val inlierPercentile by vm.lineFilterInlierPercentile.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
-    val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        uri?.let { vm.saveSession(it, context) }
+    val recordLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/gzip")) { uri ->
+        uri?.let { vm.startRecording(it, context) }
     }
     val loadLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { vm.loadRecording(it, context) }
@@ -188,26 +187,22 @@ fun LidarScreen(vm: LidarViewModel) {
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
-                    onClick = { vm.toggleRecording() },
+                    onClick = {
+                        if (recording) {
+                            vm.stopRecording()
+                        } else {
+                            val timestamp = Clock.System.now().toString().replace(":", "-")
+                            recordLauncher.launch("lidar-session-$timestamp.json.gz")
+                        }
+                    },
                     enabled = !replaying
                 ) {
                     Text(if (recording) "Stop Recording" else "Start Recording")
                 }
-                if (recording) {
-                    Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
-                    Button(
-                        onClick = {
-                            vm.toggleRecording()
-                            val timestamp = Clock.System.now().toString().replace(":", "-")
-                            saveLauncher.launch("lidar-session-$timestamp.json")
-                        },
-                        enabled = !replaying
-                    ) { Text("Save") }
-                }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
-                    onClick = { loadLauncher.launch(arrayOf("application/json")) },
+                    onClick = { loadLauncher.launch(arrayOf("application/gzip", "application/json")) },
                     enabled = !recording && !replaying && !loading
                 ) { Text("Load") }
                 if (replaying) {
@@ -298,26 +293,22 @@ fun LidarScreen(vm: LidarViewModel) {
                 }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
-                        onClick = { vm.toggleRecording() },
+                        onClick = {
+                            if (recording) {
+                                vm.stopRecording()
+                            } else {
+                                val timestamp = Clock.System.now().toString().replace(":", "-")
+                                recordLauncher.launch("lidar-session-$timestamp.json.gz")
+                            }
+                        },
                         enabled = !replaying
                     ) {
                         Text(if (recording) "Stop Recording" else "Start Recording")
                     }
-                    if (recording) {
-                        Button(onClick = { vm.clearSession() }, enabled = !replaying) { Text("Reset") }
-                        Button(
-                            onClick = {
-                                vm.toggleRecording()
-                                val timestamp = Clock.System.now().toString().replace(":", "-")
-                                saveLauncher.launch("lidar-session-$timestamp.json")
-                            },
-                            enabled = !replaying
-                        ) { Text("Save") }
-                    }
                 }
             Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
-                    onClick = { loadLauncher.launch(arrayOf("application/json")) },
+                    onClick = { loadLauncher.launch(arrayOf("application/gzip", "application/json")) },
                     enabled = !recording && !replaying && !loading
                 ) { Text("Load") }
                 if (replaying) {
