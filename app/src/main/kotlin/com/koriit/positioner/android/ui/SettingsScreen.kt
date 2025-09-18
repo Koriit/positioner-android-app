@@ -79,6 +79,7 @@ fun SettingsPanel(
     val lineAlgorithm by vm.lineAlgorithm.collectAsState()
     val showGrid by vm.showOccupancyGrid.collectAsState()
     val gyroscopeRate by vm.gyroscopeRate.collectAsState()
+    val gyroscopeRotationEnabled by vm.gyroscopeRotationEnabled.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
     val useLastPose by vm.useLastPose.collectAsState()
     val poseAlgorithm by vm.poseAlgorithm.collectAsState()
@@ -129,6 +130,13 @@ fun SettingsPanel(
             valueRange = GyroscopeReader.MIN_RATE_HZ.toFloat()..400f,
             onReset = { vm.resetGyroscopeRate() }
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = gyroscopeRotationEnabled,
+                onCheckedChange = { vm.setGyroscopeRotationEnabled(it) }
+            )
+            Text("Rotate measurements")
+        }
         Divider()
         Spacer(modifier = Modifier.height(8.dp))
 

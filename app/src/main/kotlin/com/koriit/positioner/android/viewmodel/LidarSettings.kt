@@ -48,4 +48,5 @@ data class LidarSettings(
     val particleCount: Int = LidarViewModel.DEFAULT_PARTICLE_COUNT,
     val particleIterations: Int = LidarViewModel.DEFAULT_PARTICLE_ITERATIONS,
     val gyroscopeRate: Int = GyroscopeReader.DEFAULT_RATE_HZ,
+    val gyroscopeRotationEnabled: Boolean = LidarViewModel.DEFAULT_GYROSCOPE_ROTATION_ENABLED,
 )

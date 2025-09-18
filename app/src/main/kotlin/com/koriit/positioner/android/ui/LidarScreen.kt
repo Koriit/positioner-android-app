@@ -72,6 +72,8 @@ fun LidarScreen(vm: LidarViewModel) {
     val lengthPercentile by vm.lineFilterLengthPercentile.collectAsState()
     val inlierPercentile by vm.lineFilterInlierPercentile.collectAsState()
     val gyroscopeState by vm.gyroscopeState.collectAsState()
+    val gyroscopeRotationEnabled by vm.gyroscopeRotationEnabled.collectAsState()
+    val gyroscopeRotation by vm.gyroscopeRotation.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -121,6 +123,7 @@ fun LidarScreen(vm: LidarViewModel) {
     val filteredPct by vm.filteredPercentage.collectAsState()
 
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+    val gyroStatusSuffix = if (gyroscopeRotationEnabled) "" else " (off)"
 
     if (isPortrait) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -155,6 +158,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
                     measurementOrientation = measurementOrientation,
+                    gyroscopeRotation = if (gyroscopeRotationEnabled) gyroscopeRotation else 0f,
                     planScale = planScale,
                     userPosition = userPosition,
                     occupancyGrid = occupancyGrid,
@@ -197,6 +201,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     Text("Pose score: $poseScore")
                     Text("Pose avg50: ${"%.1f".format(poseAvg)}")
                     Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
+                    Text("Gyro rotation: ${"%.1f".format(gyroscopeRotation)}°$gyroStatusSuffix")
                     Text("Scale: ${"%.2f".format(planScale)}")
                 }
             }
@@ -263,6 +268,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
                     measurementOrientation = measurementOrientation,
+                    gyroscopeRotation = if (gyroscopeRotationEnabled) gyroscopeRotation else 0f,
                     planScale = planScale,
                     userPosition = userPosition,
                     occupancyGrid = occupancyGrid,
@@ -359,10 +365,11 @@ fun LidarScreen(vm: LidarViewModel) {
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Pose time ms: $poseMs")
-                        Text("Pose score: $poseScore")
-                        Text("Pose avg50: ${"%.1f".format(poseAvg)}")
-                        Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
-                        Text("Scale: ${"%.2f".format(planScale)}")
+                    Text("Pose score: $poseScore")
+                    Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                    Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
+                    Text("Gyro rotation: ${"%.1f".format(gyroscopeRotation)}°$gyroStatusSuffix")
+                    Text("Scale: ${"%.2f".format(planScale)}")
                     }
                 }
                 if (showLogs) {

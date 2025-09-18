@@ -17,4 +17,8 @@ data class Rotation(
     val measurements: List<LidarMeasurement>,
     val start: Instant = Clock.System.now(),
     val gyroscope: List<GyroscopeMeasurement> = emptyList(),
+    /**
+     * Absolute device orientation in degrees after this rotation.
+     */
+    val gyroscopeOrientation: Float? = null,
 )
