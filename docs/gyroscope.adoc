@@ -8,3 +8,9 @@ the `HIGH_SAMPLING_RATE_SENSORS` permission which is declared in the manifest.
 All samples collected between two LiDAR rotations are buffered and stored with
 each rotation packet. If the gyroscope is unavailable, disabled or either
 required permission is missing the app continues without IMU data.
+
+When the *Rotate measurements* option is enabled in the gyroscope section of
+the settings screen the app integrates the z-axis angular velocity to estimate
+device heading and rotates the LiDAR scan before rendering it. Negative sensor
+values correspond to turning right, so the plot is rotated to the right to keep
+the environment aligned with the real world orientation.
