@@ -47,6 +47,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         const val DEFAULT_GRADIENT_MIN = 180f
         const val DEFAULT_MIN_DISTANCE = 0.5f
         const val DEFAULT_ISOLATION_DISTANCE = 0.75f
+        const val DEFAULT_ISOLATION_FILTER_ENABLED = true
         const val DEFAULT_MIN_NEIGHBOURS = 2
         const val DEFAULT_LINE_DISTANCE_THRESHOLD = 0.02f
         const val DEFAULT_LINE_MIN_POINTS = 5
@@ -88,6 +89,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val minDistance = MutableStateFlow(DEFAULT_MIN_DISTANCE) // metres
     val isolationDistance = MutableStateFlow(DEFAULT_ISOLATION_DISTANCE) // metres
     val isolationMinNeighbours = MutableStateFlow(DEFAULT_MIN_NEIGHBOURS)
+    val isolationFilterEnabled = MutableStateFlow(DEFAULT_ISOLATION_FILTER_ENABLED)
     val detectLines = MutableStateFlow(false)
     val lineDistanceThreshold = MutableStateFlow(DEFAULT_LINE_DISTANCE_THRESHOLD)
     val lineMinPoints = MutableStateFlow(DEFAULT_LINE_MIN_POINTS)
@@ -178,6 +180,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             merge(
                 confidenceThreshold.map { },
                 minDistance.map { },
+                isolationFilterEnabled.map { },
                 isolationDistance.map { },
                 isolationMinNeighbours.map { },
                 detectLines.map { },
@@ -285,6 +288,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 confidenceThreshold = confidenceThreshold.value,
                 gradientMin = gradientMin.value,
                 minDistance = minDistance.value,
+                isolationFilterEnabled = isolationFilterEnabled.value,
                 isolationDistance = isolationDistance.value,
                 isolationMinNeighbours = isolationMinNeighbours.value,
                 detectLines = detectLines.value,
@@ -342,6 +346,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     confidenceThreshold.value = it.confidenceThreshold
                     gradientMin.value = it.gradientMin
                     minDistance.value = it.minDistance
+                    isolationFilterEnabled.value = it.isolationFilterEnabled
                     isolationDistance.value = it.isolationDistance
                     isolationMinNeighbours.value = it.isolationMinNeighbours
                     detectLines.value = it.detectLines
@@ -522,20 +527,27 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         val rotationOrientation = orientation ?: gyroscopeOrientation.currentOrientation()
         applyGyroscopeOrientation(rotationOrientation, gyro.lastOrNull()?.timestamp)
         lastRotation = Rotation(raw, Clock.System.now(), gyro, rotationOrientation)
-        val filtered = MeasurementFilter.apply(
-            raw,
-            confidenceThreshold.value.toInt(),
-            minDistance.value,
-            isolationDistance.value,
-            isolationMinNeighbours.value,
-        )
-        val removed = raw.size - filtered.size
-        filteredMeasurements.value = removed
-        filteredPercentage.value = if (raw.isNotEmpty()) removed * 100f / raw.size else 0f
-        _measurements.value = filtered
+        val measurementsForPose = if (filterPoseInput.value) {
+            val filtered = MeasurementFilter.apply(
+                raw,
+                confidenceThreshold.value.toInt(),
+                minDistance.value,
+                if (isolationFilterEnabled.value) isolationDistance.value else 0f,
+                if (isolationFilterEnabled.value) isolationMinNeighbours.value else 0,
+            )
+            val removed = raw.size - filtered.size
+            filteredMeasurements.value = removed
+            filteredPercentage.value = if (raw.isNotEmpty()) removed * 100f / raw.size else 0f
+            filtered
+        } else {
+            filteredMeasurements.value = 0
+            filteredPercentage.value = 0f
+            raw
+        }
+        _measurements.value = measurementsForPose
         val poseInput = if (detectLines.value) {
             val lines = LineDetector.detect(
-                filtered,
+                measurementsForPose,
                 lineDistanceThreshold.value,
                 lineMinPoints.value,
                 lineAngleTolerance.value,
@@ -565,7 +577,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             lineFeatures.value = emptyList()
             lineLengthPx.value = 0f
             lineInlierPx.value = 0f
-            if (filterPoseInput.value) filtered else raw
+            measurementsForPose
         }
         updateTransform(poseInput)
     }

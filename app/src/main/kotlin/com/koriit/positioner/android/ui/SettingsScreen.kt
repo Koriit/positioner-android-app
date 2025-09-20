@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.unit.dp
 import com.koriit.positioner.android.localization.PoseAlgorithm
 import com.koriit.positioner.android.lidar.LineAlgorithm
@@ -59,6 +60,7 @@ fun SettingsPanel(
     val confidence by vm.confidenceThreshold.collectAsState()
     val gradientMin by vm.gradientMin.collectAsState()
     val minDistance by vm.minDistance.collectAsState()
+    val isolationFilterEnabled by vm.isolationFilterEnabled.collectAsState()
     val isolationDistance by vm.isolationDistance.collectAsState()
     val isolationMinNeighbours by vm.isolationMinNeighbours.collectAsState()
     val detectLines by vm.detectLines.collectAsState()
@@ -166,19 +168,35 @@ fun SettingsPanel(
             valueRange = 0f..2f,
             onReset = { vm.resetMinDistance() }
         )
-        Text("Isolation distance: ${"%.2f".format(isolationDistance)} m")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = isolationFilterEnabled,
+                onCheckedChange = { vm.isolationFilterEnabled.value = it }
+            )
+            Text("Remove isolated points")
+        }
+        val isolationAlpha = if (isolationFilterEnabled) 1f else 0.6f
+        Text(
+            "Isolation distance: ${"%.2f".format(isolationDistance)} m",
+            modifier = Modifier.alpha(isolationAlpha)
+        )
         SliderWithActions(
             value = isolationDistance,
             onValueChange = { vm.isolationDistance.value = it },
             valueRange = 0f..5f,
-            onReset = { vm.resetIsolationDistance() }
+            onReset = { vm.resetIsolationDistance() },
+            enabled = isolationFilterEnabled,
         )
-        Text("Isolation neighbours: $isolationMinNeighbours")
+        Text(
+            "Isolation neighbours: $isolationMinNeighbours",
+            modifier = Modifier.alpha(isolationAlpha)
+        )
         SliderWithActions(
             value = isolationMinNeighbours.toFloat(),
             onValueChange = { vm.isolationMinNeighbours.value = it.toInt() },
             valueRange = 0f..10f,
-            onReset = { vm.resetIsolationMinNeighbours() }
+            onReset = { vm.resetIsolationMinNeighbours() },
+            enabled = isolationFilterEnabled,
         )
         Divider()
         Spacer(modifier = Modifier.height(8.dp))

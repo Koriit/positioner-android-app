@@ -205,13 +205,11 @@ fun LidarScreen(vm: LidarViewModel) {
                     Text("Scale: ${"%.2f".format(planScale)}")
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Button(
-                    onClick = { vm.rotate90() },
-                    enabled = floorPlan.isEmpty()
-                ) { Text("Rotate 90°") }
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Button(
                     onClick = {
                         if (recording) {
@@ -221,24 +219,37 @@ fun LidarScreen(vm: LidarViewModel) {
                             recordLauncher.launch("lidar-session-$timestamp.json.gz")
                         }
                     },
-                    enabled = !replaying
+                    enabled = !replaying,
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(if (recording) "Stop Recording" else "Start Recording")
                 }
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
                 Button(
                     onClick = { loadLauncher.launch(arrayOf("application/gzip", "application/json")) },
-                    enabled = !recording && !replaying && !loading
+                    enabled = !recording && !replaying && !loading,
+                    modifier = Modifier.weight(1f)
                 ) { Text("Load") }
                 if (replaying) {
-                    Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
+                    Button(
+                        onClick = { vm.exitReplay() },
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Exit Replay") }
                 }
             }
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = { vm.rotate90() },
+                    enabled = floorPlan.isEmpty(),
+                    modifier = Modifier.weight(1f)
+                ) { Text("Rotate 90°") }
                 Button(
                     onClick = { floorPlanLauncher.launch(arrayOf("application/json")) },
-                    enabled = !loading
+                    enabled = !loading,
+                    modifier = Modifier.weight(1f)
                 ) { Text("Load Floor Plan") }
             }
             if (replaying) {
@@ -312,13 +323,11 @@ fun LidarScreen(vm: LidarViewModel) {
                         scrollable = false,
                     )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = { vm.rotate90() },
-                        enabled = floorPlan.isEmpty()
-                    ) { Text("Rotate 90°") }
-                }
-                Row(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Button(
                         onClick = {
                             if (recording) {
@@ -328,29 +337,42 @@ fun LidarScreen(vm: LidarViewModel) {
                                 recordLauncher.launch("lidar-session-$timestamp.json.gz")
                             }
                         },
-                        enabled = !replaying
+                        enabled = !replaying,
+                        modifier = Modifier.weight(1f)
                     ) {
                         Text(if (recording) "Stop Recording" else "Start Recording")
                     }
+                    Button(
+                        onClick = { loadLauncher.launch(arrayOf("application/gzip", "application/json")) },
+                        enabled = !recording && !replaying && !loading,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Load") }
+                    if (replaying) {
+                        Button(
+                            onClick = { vm.exitReplay() },
+                            modifier = Modifier.weight(1f)
+                        ) { Text("Exit Replay") }
+                    }
                 }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = { loadLauncher.launch(arrayOf("application/gzip", "application/json")) },
-                    enabled = !recording && !replaying && !loading
-                ) { Text("Load") }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = { vm.rotate90() },
+                        enabled = floorPlan.isEmpty(),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Rotate 90°") }
+                    Button(
+                        onClick = { floorPlanLauncher.launch(arrayOf("application/json")) },
+                        enabled = !loading,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Load Floor Plan") }
+                }
                 if (replaying) {
-                    Button(onClick = { vm.exitReplay() }) { Text("Exit Replay") }
+                    ReplayControls(vm)
                 }
-            }
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Button(
-                    onClick = { floorPlanLauncher.launch(arrayOf("application/json")) },
-                    enabled = !loading
-                ) { Text("Load Floor Plan") }
-            }
-            if (replaying) {
-                ReplayControls(vm)
-            }
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Measurements/s: $mps")
