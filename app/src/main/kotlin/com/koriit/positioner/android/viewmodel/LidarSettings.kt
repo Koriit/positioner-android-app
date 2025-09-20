@@ -18,6 +18,7 @@ data class LidarSettings(
     val confidenceThreshold: Float = LidarViewModel.DEFAULT_CONFIDENCE_THRESHOLD,
     val gradientMin: Float = LidarViewModel.DEFAULT_GRADIENT_MIN,
     val minDistance: Float = LidarViewModel.DEFAULT_MIN_DISTANCE,
+    val isolationFilterEnabled: Boolean = LidarViewModel.DEFAULT_ISOLATION_FILTER_ENABLED,
     val isolationDistance: Float = LidarViewModel.DEFAULT_ISOLATION_DISTANCE,
     val isolationMinNeighbours: Int = LidarViewModel.DEFAULT_MIN_NEIGHBOURS,
     val detectLines: Boolean = false,
