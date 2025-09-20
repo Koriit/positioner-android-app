@@ -11,6 +11,21 @@ class LidarParser {
         private const val TAG = "LidarParser"
         private const val PACKET_LENGTH = 47
         private const val MEASUREMENT_LENGTH = 12
+        private const val CRC_POLYNOMIAL = 0x4D
+
+        private val CRC_TABLE: IntArray = IntArray(256).also { table ->
+            for (value in table.indices) {
+                var crc = value
+                repeat(8) {
+                    crc = if ((crc and 0x80) != 0) {
+                        ((crc shl 1) xor CRC_POLYNOMIAL)
+                    } else {
+                        crc shl 1
+                    }
+                }
+                table[value] = crc and 0xFF
+            }
+        }
 
         private fun normalizeAngle(angle: Float): Float {
             var normalized = angle % 360f
@@ -18,6 +33,15 @@ class LidarParser {
                 normalized += 360f
             }
             return normalized
+        }
+
+        private fun computeCrc(data: ByteArray): Int {
+            var crc = 0
+            for (i in 0 until data.lastIndex) {
+                val index = (crc xor (data[i].toInt() and 0xFF)) and 0xFF
+                crc = CRC_TABLE[index]
+            }
+            return crc and 0xFF
         }
     }
 
@@ -27,6 +51,11 @@ class LidarParser {
      */
     fun parse(data: ByteArray): List<LidarMeasurement> {
         require(data.size == PACKET_LENGTH) { "Invalid packet length" }
+        val expectedCrc = computeCrc(data)
+        val actualCrc = data.last().toInt() and 0xFF
+        if (expectedCrc != actualCrc) {
+            return emptyList()
+        }
         val buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
         buf.get() // header 0x54
         buf.get() // length 0x2C

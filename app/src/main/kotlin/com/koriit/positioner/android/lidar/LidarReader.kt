@@ -12,6 +12,11 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import java.util.ArrayList
 
+data class LidarRotationBatch(
+    val measurements: List<LidarMeasurement>,
+    val corruptedPackets: Int,
+)
+
 /**
  * Continuously read measurement packets from the serial port and emit
  * individual measurements as a [Flow]. The implementation searches for
@@ -85,19 +90,26 @@ class LidarReader(private val port: UsbSerialPort) {
     }
 
     // Stream full rotations of measurements based on angle wrap.
-    fun rotations(): Flow<List<LidarMeasurement>> = flow {
+    fun rotations(): Flow<LidarRotationBatch> = flow {
         val packet = ByteArray(47)
         val header0 = 0x54.toByte()
         val header1 = 0x2C.toByte()
 
         val current = ArrayList<LidarMeasurement>()
         var lastAngle: Float? = null
+        var corruptedPackets = 0
+
+        suspend fun emitRotation() {
+            if (current.isEmpty() && corruptedPackets == 0) return
+            emit(LidarRotationBatch(current.toList(), corruptedPackets))
+            current.clear()
+            corruptedPackets = 0
+        }
 
         suspend fun handleMeasurement(m: LidarMeasurement) {
             lastAngle?.let { prev ->
                 if (m.angle < prev && current.isNotEmpty()) {
-                    emit(current.toList())
-                    current.clear()
+                    emitRotation()
                 }
             }
             current.add(m)
@@ -107,6 +119,11 @@ class LidarReader(private val port: UsbSerialPort) {
         suspend fun emitPacket(packet: ByteArray) {
             try {
                 val measures = parser.parse(packet)
+                if (measures.isEmpty()) {
+                    corruptedPackets++
+                    AppLog.d(TAG, "Discarded packet due to CRC mismatch")
+                    return
+                }
                 measures.forEach { handleMeasurement(it) }
             } catch (e: IllegalArgumentException) {
                 AppLog.d(TAG, "Malformed packet", e)

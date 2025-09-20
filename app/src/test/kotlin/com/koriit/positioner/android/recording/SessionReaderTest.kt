@@ -17,7 +17,8 @@ class SessionReaderTest {
             measurements = listOf(
                 LidarMeasurement(10f, 100, 255),
                 LidarMeasurement(20f, 100, 255)
-            )
+            ),
+            corruptedPackets = 3,
         )
         val json = Json.encodeToString(rotation)
         val file = File.createTempFile("rotation", ".json.gz")
@@ -30,6 +31,7 @@ class SessionReaderTest {
             val result = SessionReader.read(stream)
             assertEquals(1, result.size)
             assertEquals(2, result.first().measurements.size)
+            assertEquals(3, result.first().corruptedPackets)
         }
     }
 
@@ -51,6 +53,8 @@ class SessionReaderTest {
             assertEquals(2, result.size)
             assertEquals(2, result.first().measurements.size)
             assertEquals(1, result.last().measurements.size)
+            assertEquals(0, result.first().corruptedPackets)
+            assertEquals(0, result.last().corruptedPackets)
         }
     }
 }
