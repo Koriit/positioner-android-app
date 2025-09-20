@@ -10,6 +10,7 @@ import com.koriit.positioner.android.gyro.GyroscopeMeasurement
 import com.koriit.positioner.android.gyro.GyroscopeOrientationTracker
 import com.koriit.positioner.android.gyro.GyroscopeReader
 import com.koriit.positioner.android.lidar.LidarReader
+import com.koriit.positioner.android.lidar.LidarRotationBatch
 import com.koriit.positioner.android.lidar.MeasurementFilter
 import com.koriit.positioner.android.lidar.GeoJsonParser
 import com.koriit.positioner.android.lidar.LineDetector
@@ -124,6 +125,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     val rotationsPerSecond = MutableStateFlow(0f)
     val filteredMeasurements = MutableStateFlow(0)
     val filteredPercentage = MutableStateFlow(0f)
+    val corruptedPackets = MutableStateFlow(0)
     /** Average number of pose combinations evaluated per second */
     val poseCombinationsPerSecond = MutableStateFlow(0f)
     /** Time in milliseconds to compute last pose estimate */
@@ -459,6 +461,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         replayPositionMs.value = 0
         _measurements.value = emptyList()
         loadingReplay.value = false
+        corruptedPackets.value = 0
         readJob?.cancel()
         resetGyroscopeTracking()
         clearGyroscopeBuffer()
@@ -487,7 +490,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         replayPositionMs.value = replayRotationStarts[targetIdx]
         viewModelScope.launch {
             val rot = replayRotations[targetIdx]
-            processRotation(rot.measurements, rot.gyroscope, rot.gyroscopeOrientation)
+            processRotation(rot.measurements, rot.gyroscope, rot.gyroscopeOrientation, rot.corruptedPackets)
         }
     }
 
@@ -523,10 +526,18 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         raw: List<LidarMeasurement>,
         gyro: List<GyroscopeMeasurement> = emptyList(),
         orientation: Float? = null,
+        corrupted: Int = 0,
     ) {
         val rotationOrientation = orientation ?: gyroscopeOrientation.currentOrientation()
         applyGyroscopeOrientation(rotationOrientation, gyro.lastOrNull()?.timestamp)
-        lastRotation = Rotation(raw, Clock.System.now(), gyro, rotationOrientation)
+        corruptedPackets.value = corrupted
+        lastRotation = Rotation(
+            measurements = raw,
+            start = Clock.System.now(),
+            gyroscope = gyro,
+            gyroscopeOrientation = rotationOrientation,
+            corruptedPackets = corrupted,
+        )
         val measurementsForPose = if (filterPoseInput.value) {
             val filtered = MeasurementFilter.apply(
                 raw,
@@ -585,7 +596,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private suspend fun reapplyCurrentRotation() {
         val rotation = lastRotation
         if (replayMode.value && !playing.value && rotation != null) {
-            processRotation(rotation.measurements, rotation.gyroscope, rotation.gyroscopeOrientation)
+            processRotation(
+                rotation.measurements,
+                rotation.gyroscope,
+                rotation.gyroscopeOrientation,
+                rotation.corruptedPackets,
+            )
         }
     }
 
@@ -651,25 +667,28 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     _measurements.value = emptyList()
                     filteredMeasurements.value = 0
                     filteredPercentage.value = 0f
+                    corruptedPackets.value = 0
                     delay(1000)
                     continue
                 }
                 usbConnected.value = true
                 try {
-                    source.rotations().collect { rotation ->
+                    source.rotations().collect { rotationBatch: LidarRotationBatch ->
                         val now = System.currentTimeMillis()
                         val duration = now - lastRotationTime
                         rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
-                        measurementsPerSecond.value = (rotation.size * rotationsPerSecond.value).toInt()
+                        measurementsPerSecond.value = (rotationBatch.measurements.size * rotationsPerSecond.value).toInt()
+                        corruptedPackets.value = rotationBatch.corruptedPackets
                         lastRotationTime = now
                         val gyro = drainGyroscope()
                         val orientation = updateOrientationFromGyroscope(gyro)
-                        val startTimestamp = rotation.firstOrNull()?.timestamp ?: Clock.System.now()
+                        val startTimestamp = rotationBatch.measurements.firstOrNull()?.timestamp ?: Clock.System.now()
                         val rotationRecord = Rotation(
-                            rotation,
+                            measurements = rotationBatch.measurements,
                             startTimestamp,
                             gyro,
                             orientation,
+                            corruptedPackets = rotationBatch.corruptedPackets,
                         )
                         if (recording.value) {
                             withContext(Dispatchers.IO) {
@@ -680,6 +699,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                             rotationRecord.measurements,
                             rotationRecord.gyroscope,
                             rotationRecord.gyroscopeOrientation,
+                            rotationRecord.corruptedPackets,
                         )
                     }
                 } catch (e: Exception) {
@@ -687,6 +707,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     _measurements.value = emptyList()
                     filteredMeasurements.value = 0
                     filteredPercentage.value = 0f
+                    corruptedPackets.value = 0
                     AppLog.d("LidarViewModel", "Measurement loop failed", e)
                     Firebase.crashlytics.recordException(e)
                     delay(1000)
@@ -719,7 +740,12 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
                 measurementsPerSecond.value = (rotation.measurements.size * rotationsPerSecond.value).toInt()
                 replayPositionMs.value = startMs
-                processRotation(rotation.measurements, rotation.gyroscope, rotation.gyroscopeOrientation)
+                processRotation(
+                    rotation.measurements,
+                    rotation.gyroscope,
+                    rotation.gyroscopeOrientation,
+                    rotation.corruptedPackets,
+                )
                 if (nextStart != null) {
                     val delayMs = ((nextStart - startMs) / replaySpeed.value).toLong()
                     delay(delayMs)

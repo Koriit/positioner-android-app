@@ -121,6 +121,7 @@ fun LidarScreen(vm: LidarViewModel) {
     val poseAvg by vm.poseScoreAverage.collectAsState()
     val filteredCount by vm.filteredMeasurements.collectAsState()
     val filteredPct by vm.filteredPercentage.collectAsState()
+    val corruptedPackets by vm.corruptedPackets.collectAsState()
 
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
     val gyroStatusSuffix = if (gyroscopeRotationEnabled) "" else " (off)"
@@ -190,6 +191,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     Text("Rotations/s: ${"%.2f".format(rps)}")
                     Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
                     Text("Filtered: $filteredCount (${"%.1f".format(filteredPct)}%)")
+                    Text("Corrupted packets: $corruptedPackets")
                     Text("Lines: ${lineFeatures.size}")
                     if (lineFilterEnabled) {
                         Text("Len P${lengthPercentile.toInt()}: ${"%.2f".format(lineLengthPx)} m")
@@ -379,6 +381,7 @@ fun LidarScreen(vm: LidarViewModel) {
                         Text("Rotations/s: ${"%.2f".format(rps)}")
                         Text("Pose combos/s: ${"%.0f".format(poseCombos)}")
                         Text("Filtered: $filteredCount (${"%.1f".format(filteredPct)}%)")
+                        Text("Corrupted packets: $corruptedPackets")
                         Text("Lines: ${lineFeatures.size}")
                         if (lineFilterEnabled) {
                             Text("Len P${lengthPercentile.toInt()}: ${"%.2f".format(lineLengthPx)} m")

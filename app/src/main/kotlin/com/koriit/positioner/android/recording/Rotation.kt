@@ -21,4 +21,8 @@ data class Rotation(
      * Absolute device orientation in degrees after this rotation.
      */
     val gyroscopeOrientation: Float? = null,
+    /**
+     * Packets discarded due to CRC errors while collecting this rotation.
+     */
+    val corruptedPackets: Int = 0,
 )
