@@ -1,6 +1,5 @@
 package com.koriit.positioner.android.lidar
 
-import com.koriit.positioner.android.logging.AppLog
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -12,6 +11,14 @@ class LidarParser {
         private const val TAG = "LidarParser"
         private const val PACKET_LENGTH = 47
         private const val MEASUREMENT_LENGTH = 12
+
+        private fun normalizeAngle(angle: Float): Float {
+            var normalized = angle % 360f
+            if (normalized < 0f) {
+                normalized += 360f
+            }
+            return normalized
+        }
     }
 
     /**
@@ -42,9 +49,10 @@ class LidarParser {
 //        AppLog.d(TAG, "startAngle=$startAngle stopAngle=$stopAngle")
         val result = mutableListOf<LidarMeasurement>()
         for (i in 0 until MEASUREMENT_LENGTH) {
-            val angle = startAngle + step * i
+            val angle = normalizeAngle(startAngle + step * i)
             result.add(LidarMeasurement(angle, distance[i], confidence[i]))
         }
         return result
     }
+
 }
