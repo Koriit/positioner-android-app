@@ -147,6 +147,9 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     private var replayRotationStarts: List<Long> = emptyList()
     private var readJob: Job? = null
 
+    private var corruptedPacketTotal = 0
+    private var replayCorruptedTotals = IntArray(0)
+
     private var sessionWriter: SessionWriter? = null
     private val _measurements = MutableStateFlow<List<LidarMeasurement>>(emptyList())
     val measurements: StateFlow<List<LidarMeasurement>> = _measurements
@@ -433,12 +436,19 @@ class LidarViewModel(private val context: Context) : ViewModel() {
             withContext(Dispatchers.Main) {
                 loadingReplay.value = false
                 if (rotations.isEmpty()) {
+                    replayCorruptedTotals = IntArray(0)
                     startLiveReading()
                 } else {
                     val orientedRotations = rotationsWithOrientation(rotations)
                     val firstMs = orientedRotations.first().start.toEpochMilliseconds()
                     replayRotations = orientedRotations
                     replayRotationStarts = orientedRotations.map { it.start.toEpochMilliseconds() - firstMs }
+                    replayCorruptedTotals = IntArray(orientedRotations.size)
+                    var cumulativeCorrupted = 0
+                    orientedRotations.forEachIndexed { index, rotation ->
+                        cumulativeCorrupted += rotation.corruptedPackets
+                        replayCorruptedTotals[index] = cumulativeCorrupted
+                    }
                     val lastMs = rotations.last().measurements.last().timestamp.toEpochMilliseconds()
                     replayDurationMs.value = lastMs - firstMs
                     replayPositionMs.value = 0
@@ -461,7 +471,8 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         replayPositionMs.value = 0
         _measurements.value = emptyList()
         loadingReplay.value = false
-        corruptedPackets.value = 0
+        resetCorruptedPacketTotal()
+        replayCorruptedTotals = IntArray(0)
         readJob?.cancel()
         resetGyroscopeTracking()
         clearGyroscopeBuffer()
@@ -490,6 +501,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         replayPositionMs.value = replayRotationStarts[targetIdx]
         viewModelScope.launch {
             val rot = replayRotations[targetIdx]
+            updateCorruptedPacketTotal(replayCorruptedTotalIncluding(targetIdx))
             processRotation(rot.measurements, rot.gyroscope, rot.gyroscopeOrientation, rot.corruptedPackets)
         }
     }
@@ -530,7 +542,6 @@ class LidarViewModel(private val context: Context) : ViewModel() {
     ) {
         val rotationOrientation = orientation ?: gyroscopeOrientation.currentOrientation()
         applyGyroscopeOrientation(rotationOrientation, gyro.lastOrNull()?.timestamp)
-        corruptedPackets.value = corrupted
         lastRotation = Rotation(
             measurements = raw,
             start = Clock.System.now(),
@@ -656,6 +667,32 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         return GyroscopeOrientationTracker.withOrientation(rotations)
     }
 
+    private fun resetCorruptedPacketTotal() {
+        updateCorruptedPacketTotal(0)
+    }
+
+    private fun updateCorruptedPacketTotal(total: Int) {
+        corruptedPacketTotal = total
+        corruptedPackets.value = total
+    }
+
+    private fun addCorruptedPackets(count: Int) {
+        if (count == 0) return
+        updateCorruptedPacketTotal(corruptedPacketTotal + count)
+    }
+
+    private fun replayCorruptedTotalBefore(index: Int): Int {
+        if (index <= 0 || replayCorruptedTotals.isEmpty()) return 0
+        val clamped = (index - 1).coerceAtMost(replayCorruptedTotals.lastIndex)
+        return replayCorruptedTotals[clamped]
+    }
+
+    private fun replayCorruptedTotalIncluding(index: Int): Int {
+        if (replayCorruptedTotals.isEmpty()) return 0
+        val clamped = index.coerceIn(0, replayCorruptedTotals.lastIndex)
+        return replayCorruptedTotals[clamped]
+    }
+
     private fun startLiveReading() {
         readJob?.cancel()
         readJob = viewModelScope.launch(Dispatchers.Default) {
@@ -667,7 +704,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     _measurements.value = emptyList()
                     filteredMeasurements.value = 0
                     filteredPercentage.value = 0f
-                    corruptedPackets.value = 0
+                    resetCorruptedPacketTotal()
                     delay(1000)
                     continue
                 }
@@ -678,7 +715,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                         val duration = now - lastRotationTime
                         rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
                         measurementsPerSecond.value = (rotationBatch.measurements.size * rotationsPerSecond.value).toInt()
-                        corruptedPackets.value = rotationBatch.corruptedPackets
+                        addCorruptedPackets(rotationBatch.corruptedPackets)
                         lastRotationTime = now
                         val gyro = drainGyroscope()
                         val orientation = updateOrientationFromGyroscope(gyro)
@@ -707,7 +744,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                     _measurements.value = emptyList()
                     filteredMeasurements.value = 0
                     filteredPercentage.value = 0f
-                    corruptedPackets.value = 0
+                    resetCorruptedPacketTotal()
                     AppLog.d("LidarViewModel", "Measurement loop failed", e)
                     Firebase.crashlytics.recordException(e)
                     delay(1000)
@@ -727,6 +764,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
         readJob = viewModelScope.launch(Dispatchers.Default) {
             val firstMs = replayRotationStarts.firstOrNull() ?: 0L
             var index = findRotationIndex(replayPositionMs.value)
+            updateCorruptedPacketTotal(replayCorruptedTotalBefore(index))
             var lastStart = if (index < replayRotationStarts.size) replayRotationStarts[index] else firstMs
             while (replayMode.value && index < replayRotations.size) {
                 if (!playing.value) {
@@ -740,6 +778,7 @@ class LidarViewModel(private val context: Context) : ViewModel() {
                 rotationsPerSecond.value = if (duration > 0) 1000f / duration else 0f
                 measurementsPerSecond.value = (rotation.measurements.size * rotationsPerSecond.value).toInt()
                 replayPositionMs.value = startMs
+                updateCorruptedPacketTotal(replayCorruptedTotalIncluding(index))
                 processRotation(
                     rotation.measurements,
                     rotation.gyroscope,
