@@ -35,6 +35,7 @@ fun LidarPlot(
     floorPlan: List<List<Pair<Float, Float>>> = emptyList(),
     measurementOrientation: Float = 0f,
     gyroscopeRotation: Float = 0f,
+    orientationRotation: Float = 0f,
     planScale: Float = 1f,
     userPosition: Pair<Float, Float>? = null,
     occupancyGrid: OccupancyGrid? = null,
@@ -45,7 +46,7 @@ fun LidarPlot(
     Canvas(modifier = modifier) {
         val points = measurements.map { m ->
             var (x, y) = m.toPoint()
-            val total = rotation.toFloat() + measurementOrientation + gyroscopeRotation
+            val total = rotation.toFloat() + measurementOrientation + gyroscopeRotation + orientationRotation
             if (total != 0f) {
                 val angleRad = Math.toRadians(total.toDouble())
                 val cos = kotlin.math.cos(angleRad).toFloat()
@@ -61,7 +62,7 @@ fun LidarPlot(
         val segments = lines.map { line ->
             var (sx, sy) = line.start
             var (ex, ey) = line.end
-            val total = rotation.toFloat() + measurementOrientation + gyroscopeRotation
+            val total = rotation.toFloat() + measurementOrientation + gyroscopeRotation + orientationRotation
             if (total != 0f) {
                 val angleRad = Math.toRadians(total.toDouble())
                 val cos = kotlin.math.cos(angleRad).toFloat()

@@ -1,3 +1,14 @@
-== Orientation support
+== Orientation sensor
 
-The main screen adapts to device orientation. In portrait mode the lidar canvas stretches across the full width with controls below. In landscape the canvas fills the screen height with controls arranged to the right.
+The app listens to the platform game rotation vector sensor when available,
+falling back to the full rotation vector on older devices. Each sample is
+converted into a quaternion using `SensorManager.getQuaternionFromVector`. The
+game rotation vector ignores the magnetometer so the heading remains smooth when
+the magnetic field changes, while the fallback preserves compatibility. The
+fused orientation complements the gyroscope integration by providing an
+absolute heading, which can be toggled in the settings under *Orientation
+sensor*.
+
+All quaternions collected between LiDAR rotations are buffered and recorded in
+session files. During playback the last quaternion for each rotation is applied
+so that the LiDAR plot matches the recorded device pose.

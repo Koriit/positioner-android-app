@@ -1,7 +1,8 @@
 package com.koriit.positioner.android.recording
 
-import com.koriit.positioner.android.lidar.LidarMeasurement
 import com.koriit.positioner.android.gyro.GyroscopeMeasurement
+import com.koriit.positioner.android.lidar.LidarMeasurement
+import com.koriit.positioner.android.orientation.OrientationMeasurement
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
@@ -17,6 +18,7 @@ data class Rotation(
     val measurements: List<LidarMeasurement>,
     val start: Instant = Clock.System.now(),
     val gyroscope: List<GyroscopeMeasurement> = emptyList(),
+    val orientation: List<OrientationMeasurement> = emptyList(),
     /**
      * Absolute device orientation in degrees after this rotation.
      */
