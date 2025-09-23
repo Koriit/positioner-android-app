@@ -74,6 +74,9 @@ fun LidarScreen(vm: LidarViewModel) {
     val gyroscopeState by vm.gyroscopeState.collectAsState()
     val gyroscopeRotationEnabled by vm.gyroscopeRotationEnabled.collectAsState()
     val gyroscopeRotation by vm.gyroscopeRotation.collectAsState()
+    val orientationState by vm.orientationState.collectAsState()
+    val orientationRotationEnabled by vm.orientationRotationEnabled.collectAsState()
+    val orientationRotation by vm.orientationRotation.collectAsState()
     val configuration = LocalConfiguration.current
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -124,7 +127,25 @@ fun LidarScreen(vm: LidarViewModel) {
     val corruptedPackets by vm.corruptedPackets.collectAsState()
 
     val isPortrait = configuration.orientation == Configuration.ORIENTATION_PORTRAIT
-    val gyroStatusSuffix = if (gyroscopeRotationEnabled) "" else " (off)"
+    val orientationActive = orientationRotationEnabled && orientationState == LidarViewModel.OrientationState.OK
+    val gyroscopeActive =
+        gyroscopeRotationEnabled && gyroscopeState == LidarViewModel.GyroscopeState.OK && !orientationActive
+    val gyroStatusSuffix = when {
+        !gyroscopeRotationEnabled -> " (off)"
+        gyroscopeState == LidarViewModel.GyroscopeState.NO_SENSOR -> " (no sensor)"
+        gyroscopeState == LidarViewModel.GyroscopeState.NO_PERMISSION -> " (no permission)"
+        gyroscopeState == LidarViewModel.GyroscopeState.DISABLED -> " (disabled)"
+        orientationActive -> " (overridden)"
+        else -> ""
+    }
+    val orientationStatusSuffix = when {
+        !orientationRotationEnabled -> " (off)"
+        orientationState == LidarViewModel.OrientationState.NO_SENSOR -> " (no sensor)"
+        orientationState == LidarViewModel.OrientationState.DISABLED -> " (disabled)"
+        else -> ""
+    }
+    val gyroAngle = if (gyroscopeActive) gyroscopeRotation else 0f
+    val orientationAngle = if (orientationActive) orientationRotation else 0f
 
     if (isPortrait) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -159,7 +180,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
                     measurementOrientation = measurementOrientation,
-                    gyroscopeRotation = if (gyroscopeRotationEnabled) gyroscopeRotation else 0f,
+                    gyroscopeRotation = gyroAngle,
+                    orientationRotation = orientationAngle,
                     planScale = planScale,
                     userPosition = userPosition,
                     occupancyGrid = occupancyGrid,
@@ -203,6 +225,7 @@ fun LidarScreen(vm: LidarViewModel) {
                     Text("Pose score: $poseScore")
                     Text("Pose avg50: ${"%.1f".format(poseAvg)}")
                     Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
+                    Text("Orientation sensor: ${"%.1f".format(orientationRotation)}°$orientationStatusSuffix")
                     Text("Gyro rotation: ${"%.1f".format(gyroscopeRotation)}°$gyroStatusSuffix")
                     Text("Scale: ${"%.2f".format(planScale)}")
                 }
@@ -281,7 +304,8 @@ fun LidarScreen(vm: LidarViewModel) {
                     gradientMin = gradientMin.toInt(),
                     floorPlan = floorPlan,
                     measurementOrientation = measurementOrientation,
-                    gyroscopeRotation = if (gyroscopeRotationEnabled) gyroscopeRotation else 0f,
+                    gyroscopeRotation = gyroAngle,
+                    orientationRotation = orientationAngle,
                     planScale = planScale,
                     userPosition = userPosition,
                     occupancyGrid = occupancyGrid,
@@ -390,11 +414,12 @@ fun LidarScreen(vm: LidarViewModel) {
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Pose time ms: $poseMs")
-                    Text("Pose score: $poseScore")
-                    Text("Pose avg50: ${"%.1f".format(poseAvg)}")
-                    Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
-                    Text("Gyro rotation: ${"%.1f".format(gyroscopeRotation)}°$gyroStatusSuffix")
-                    Text("Scale: ${"%.2f".format(planScale)}")
+                        Text("Pose score: $poseScore")
+                        Text("Pose avg50: ${"%.1f".format(poseAvg)}")
+                        Text("Orientation: ${"%.1f".format(measurementOrientation)}°")
+                        Text("Orientation sensor: ${"%.1f".format(orientationRotation)}°$orientationStatusSuffix")
+                        Text("Gyro rotation: ${"%.1f".format(gyroscopeRotation)}°$gyroStatusSuffix")
+                        Text("Scale: ${"%.2f".format(planScale)}")
                     }
                 }
                 if (showLogs) {

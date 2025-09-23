@@ -82,6 +82,8 @@ fun SettingsPanel(
     val showGrid by vm.showOccupancyGrid.collectAsState()
     val gyroscopeRate by vm.gyroscopeRate.collectAsState()
     val gyroscopeRotationEnabled by vm.gyroscopeRotationEnabled.collectAsState()
+    val orientationRotationEnabled by vm.orientationRotationEnabled.collectAsState()
+    val orientationState by vm.orientationState.collectAsState()
     val gridCellSize by vm.gridCellSize.collectAsState()
     val useLastPose by vm.useLastPose.collectAsState()
     val poseAlgorithm by vm.poseAlgorithm.collectAsState()
@@ -138,6 +140,20 @@ fun SettingsPanel(
                 onCheckedChange = { vm.setGyroscopeRotationEnabled(it) }
             )
             Text("Rotate measurements")
+        }
+        Text("Orientation sensor", style = MaterialTheme.typography.titleMedium)
+        val orientationStatus = when (orientationState) {
+            LidarViewModel.OrientationState.OK -> "OK"
+            LidarViewModel.OrientationState.NO_SENSOR -> "No sensor"
+            LidarViewModel.OrientationState.DISABLED -> "Disabled"
+        }
+        Text("Status: $orientationStatus")
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Checkbox(
+                checked = orientationRotationEnabled,
+                onCheckedChange = { vm.setOrientationRotationEnabled(it) }
+            )
+            Text("Apply orientation sensor")
         }
         Divider()
         Spacer(modifier = Modifier.height(8.dp))

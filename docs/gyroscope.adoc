@@ -14,3 +14,7 @@ the settings screen the app integrates the z-axis angular velocity to estimate
 device heading and rotates the LiDAR scan before rendering it. Negative sensor
 values correspond to turning right, so the plot is rotated to the right to keep
 the environment aligned with the real world orientation.
+
+The orientation sensor complements this by providing an absolute quaternion
+heading. When enabled in the settings it takes precedence over the gyroscope
+estimate so only one orientation correction is applied to the plot.
